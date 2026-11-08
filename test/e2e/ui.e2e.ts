@@ -3,7 +3,8 @@
  * driven through a real browser. Meta is replaced by the test-only fake Graph HTTP server.
  * Run: node test/e2e/ui.e2e.ts   (requires Playwright + Chromium)
  */
-import { spawn } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
+import { createHmac } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -30,7 +31,7 @@ const server = spawn(process.execPath, ['--disable-warning=ExperimentalWarning',
     ...process.env, NODE_ENV: 'development', PORT: String(PORT), HOST: '127.0.0.1', DATABASE_PATH: join(tmp, 'e2e.db'),
     PUBLIC_BASE_URL: base, LOG_LEVEL: 'warn', WORKER_POLL_MS: '200',
     TEST_INSTAGRAM_GRAPH_BASE: fakeUrl, TEST_FACEBOOK_GRAPH_BASE: fakeUrl, TEST_INSTAGRAM_API_BASE: fakeUrl,
-    INSTAGRAM_APP_ID: '', INSTAGRAM_APP_SECRET: '', FACEBOOK_APP_ID: '', FACEBOOK_APP_SECRET: '',
+    INSTAGRAM_APP_ID: '', INSTAGRAM_APP_SECRET: 'e2e-secret', META_WEBHOOK_VERIFY_TOKEN: 'e2e-verify', FACEBOOK_APP_ID: '', FACEBOOK_APP_SECRET: '',
   },
   stdio: ['ignore', 'inherit', 'inherit'],
 });
@@ -125,6 +126,40 @@ try {
   await waitFor(async () => (await page.locator('tr:has-text("סנכרון פרופיל ועוקבים") .badge.good').count()) >= 2);
   await page.screenshot({ path: join(shots, '4-automation.png'), fullPage: true });
   step('automation: run-now job executed by background worker');
+
+  // Scheduled publishing: upload a real JPEG and publish now
+  const jpg = join(tmp, 'post.jpg');
+  execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'lavfi', '-i', 'color=c=0xdd2a7b:s=1080x1350', '-frames:v', '1', jpg]);
+  await page.goto(`${accUrl}/publish`);
+  await page.waitForSelector('text=פרסום חדש');
+  await page.setInputFiles('input[type=file]', jpg);
+  await page.waitForSelector('.upload-preview img');
+  await page.fill('textarea', 'פוסט ראשון מהמערכת #ניסיון');
+  await page.click('.chip:has-text("עכשיו")');
+  await page.click('text=🚀 פרסום עכשיו');
+  await waitFor(async () => {
+    await page.reload();
+    await page.waitForSelector('text=היסטוריית פרסומים');
+    return (await page.locator('.list-item .badge.good:has-text("פורסם")').count()) === 1;
+  }, 20_000);
+  assert.equal(fake.state.published.length, 1);
+  await page.screenshot({ path: join(shots, '7-publish.png'), fullPage: true });
+  step('publishing: uploaded JPEG and published through the content publishing API');
+
+  // Auto replies: one-click template, then a signed Meta webhook comment
+  await page.goto(`${accUrl}/replies`);
+  await page.waitForSelector('text=הפעלה בלחיצה');
+  await page.click('.template:has-text("מחיר") >> text=➕ הפעלה');
+  await page.waitForSelector('.list-item:has-text("מחיר")');
+  const hook = JSON.stringify({ object: 'instagram', entry: [{ id: fake.state.igUserId, time: 1, changes: [{ field: 'comments', value: { id: '90001', text: 'מה המחיר? 😍', from: { id: '5551', username: 'happy.customer' }, media: { id: '17900000000000001' } } }] }] });
+  const sig = 'sha256=' + createHmac('sha256', 'e2e-secret').update(hook).digest('hex');
+  const hr = await fetch(`${base}/meta/webhook`, { method: 'POST', body: hook, headers: { 'content-type': 'application/json', 'x-hub-signature-256': sig } });
+  assert.equal(hr.status, 200);
+  await waitFor(async () => fake.state.replies.length === 1 && fake.state.messages.length === 1, 10_000);
+  await page.reload();
+  await page.waitForSelector('td:has-text("happy.customer")');
+  await page.screenshot({ path: join(shots, '8-replies.png'), fullPage: true });
+  step('auto-reply: template enabled in one click, webhook comment answered publicly + privately');
 
   await page.goto(`${accUrl}/safety`);
   await page.waitForSelector('text=אירועי בטיחות');

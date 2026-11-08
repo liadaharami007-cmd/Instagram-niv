@@ -16,6 +16,9 @@ Instagram Niv Bot manages growth for several Instagram professional accounts. It
 | Post and Reels performance | ✅ Official API, automatic | Reach, views, saves, shares and interactions for each post. |
 | Your own stories | ✅ Official API, automatic | Stories and their stats are only available for 24 hours, so the system saves them every 4 hours. |
 | Competitors and audience research | ✅ Official API (Facebook Login only) | Business Discovery shows follower and post counts for other business and creator accounts. |
+| **Scheduled publishing** | ✅ Official API, automatic | Posts (JPEG), Reels and Stories at a set time. Container → processing → publish, with a check of Meta's 100-posts-per-24h limit. |
+| **Comment auto-replies** | ✅ Official API, automatic | By keyword or for every comment: a public reply (random variants) and/or a private message. Real time via Webhooks, or a check every 15 minutes. |
+| **DM auto-replies** | ✅ Official API, automatic | A welcome message and keyword-based answers. Requires Webhooks. |
 | **Follow** | 🟡 Guided manual workflow | Audience lists, a safe daily plan, opening the profile in Instagram, confirming the action, and a log of what was done. |
 | **Unfollow** | 🟡 Guided manual workflow | Rules (days since you followed, not following back, whitelist). Real follower data comes from Instagram's official data download. It also shows who stopped following you. |
 | **Story likes** | 🟡 Guided manual workflow | A queue with a minimum interval per account, plus a "no active story" option. |
@@ -68,14 +71,18 @@ Docker: `docker build -t niv-bot . && docker run -p 3000:3000 -v nivdata:/app/da
 2. **Instagram Login (recommended):** add the Instagram product, then open *API setup with Instagram login*.
    - Copy the **Instagram App ID / Secret** into `INSTAGRAM_APP_ID` and `INSTAGRAM_APP_SECRET`.
    - Add this OAuth Redirect URI: `{PUBLIC_BASE_URL}/api/oauth/instagram_login/callback`
-   - Permissions: `instagram_business_basic`, `instagram_business_manage_insights`
+   - Permissions: `instagram_business_basic`, `instagram_business_manage_insights`, `instagram_business_content_publish`, `instagram_business_manage_comments`, `instagram_business_manage_messages`
 3. **Facebook Login (optional, adds competitor tracking):** add *Facebook Login for Business*.
    - Fill in `FACEBOOK_APP_ID` and `FACEBOOK_APP_SECRET`.
    - Redirect URI: `{PUBLIC_BASE_URL}/api/oauth/facebook_login/callback`
 4. Callback URLs for App Review:
    - Deauthorize: `{PUBLIC_BASE_URL}/meta/deauthorize`
    - Data Deletion: `{PUBLIC_BASE_URL}/meta/data-deletion`
-5. While the app is in development mode it only works for accounts with a role on the app (Instagram Tester). To offer the service to outside clients, you need **App Review** for Advanced Access.
+5. **Webhooks (for real-time auto-replies):** App Dashboard → Webhooks → Instagram.
+   - Callback URL: `{PUBLIC_BASE_URL}/meta/webhook`
+   - Verify token: the value of `META_WEBHOOK_VERIFY_TOKEN`
+   - Fields: `comments`, `messages`
+6. While the app is in development mode it only works for accounts with a role on the app (Instagram Tester). To offer the service to outside clients, you need **App Review** for Advanced Access.
 
 **Quick start without OAuth:** generate an access token in the App Dashboard (*Generate token*) and paste it under "Connect with access token". The token is stored encrypted, and Instagram tokens are renewed automatically before they expire.
 

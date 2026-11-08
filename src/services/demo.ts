@@ -169,6 +169,51 @@ export class DemoService {
         }
       }
 
+      // ── Scheduled publishing (sample) ──
+      const post = db.raw.prepare(
+        `INSERT INTO scheduled_posts (id, org_id, account_id, media_type, media_url, caption, scheduled_at, status, created_by, created_at, updated_at, published_at, permalink)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      );
+      const plan: [string, string, number, string][] = [
+        ['IMAGE', 'קולקציית חורף חדשה ❄️ מה האהוב עליכם? #אופנה #חורף', 1, 'scheduled'],
+        ['REELS', 'מאחורי הקלעים של הצילומים 🎬 #רילס', 2, 'scheduled'],
+        ['STORIES', '', 3, 'scheduled'],
+        ['IMAGE', 'תודה על 5,000 עוקבים! 🎉 #תודה', -2, 'published'],
+        ['REELS', '3 טיפים לסטיילינג מהיר ✨', -5, 'published'],
+      ];
+      plan.forEach(([type, caption, d, status], i) => {
+        const at = startOfDay(addDays(today, d), TZ) + (18 + (i % 3)) * HOUR;
+        post.run(newId('pst'), orgId, id, type, thumb((i * 73 + 20) % 360), caption || null, at, status, userId, now, now, status === 'published' ? at : null, null);
+      });
+
+      // ── Auto-reply rules and history (sample) ──
+      const rule = db.raw.prepare(
+        `INSERT INTO reply_rules (id, org_id, account_id, name, channel, match_type, keywords, public_replies, dm_text, enabled, hits, enabled_at, created_at, updated_at)
+         VALUES (?,?,?,?,?,?,?,?,?,1,?,?,?,?)`,
+      );
+      const rPrice = newId('rul');
+      const rThanks = newId('rul');
+      const rDm = newId('rul');
+      rule.run(rPrice, orgId, id, 'מי ששואל "מחיר" מקבל פרטים בפרטי', 'comment', 'keywords', JSON.stringify(['מחיר', 'כמה עולה', 'פרטים']),
+        JSON.stringify(['שלחנו לך את כל הפרטים בהודעה פרטית 💌', 'היי {username}, הפרטים מחכים לך בדיירקט ✨']), 'היי! תודה שפנית 🙏 המחיר: 249₪, משלוח חינם. להזמנה: niv.demo/shop', 38, now - 20 * DAY, now - 20 * DAY, now);
+      rule.run(rThanks, orgId, id, 'תודה על כל תגובה', 'comment', 'any', '[]', JSON.stringify(['תודה רבה {username} ❤️', 'איזה כיף לקרוא, תודה! 🙏']), null, 112, now - 20 * DAY, now - 20 * DAY, now);
+      rule.run(rDm, orgId, id, 'הודעת פתיחה בדיירקט', 'dm', 'any', '[]', '[]', 'היי, תודה שכתבת לנו! 🙌 נחזור אליך תוך שעה.', 27, now - 20 * DAY, now - 20 * DAY, now);
+      const reply = db.raw.prepare(
+        `INSERT INTO auto_replies (org_id, account_id, rule_id, channel, source_id, from_username, incoming_text, action, reply_text, status, created_at) VALUES (?,?,?,?,?,?,?,?,?, 'sent', ?)`,
+      );
+      const samples: [string, string, string, string, string][] = [
+        [rPrice, 'comment', 'מה המחיר? 😍', 'public_reply', 'שלחנו לך את כל הפרטים בהודעה פרטית 💌'],
+        [rPrice, 'comment', 'מה המחיר? 😍', 'private_reply', 'היי! תודה שפנית 🙏 המחיר: 249₪, משלוח חינם.'],
+        [rThanks, 'comment', 'מהמם!!! 🔥', 'public_reply', 'תודה רבה ❤️'],
+        [rDm, 'dm', 'היי, יש במלאי מידה M?', 'dm_reply', 'היי, תודה שכתבת לנו! 🙌 נחזור אליך תוך שעה.'],
+        [rThanks, 'comment', 'איזה יופי', 'public_reply', 'איזה כיף לקרוא, תודה! 🙏'],
+        [rPrice, 'comment', 'כמה עולה?', 'public_reply', 'היי, הפרטים מחכים לך בדיירקט ✨'],
+      ];
+      for (let i = 0; i < 18; i++) {
+        const [rid, ch, text, act, rep] = samples[i % samples.length];
+        reply.run(orgId, id, rid, ch, `demo_src_${i}`, handle(), text, act, rep, now - i * 47 * 60_000);
+      }
+
       this.ctx.safety.event(orgId, id, 'warning', 'usage_high', 'ניצול מכסת ה-API גבוה (78%) — הדגמה', {});
       this.ctx.safety.event(orgId, id, 'info', 'auto_resumed', 'ההשהיה הסתיימה — החשבון חזר לפעילות (הדגמה)', {});
       this.ctx.audit.record(orgId, 'demo.created', { userId, accountId: id });

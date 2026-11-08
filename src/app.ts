@@ -28,7 +28,7 @@ export async function buildApp(ctx: Ctx, runtime: Runtime = { startedAt: Date.no
     }
   });
   // Binary uploads (Instagram export ZIP / JSON) arrive as raw bodies.
-  app.addContentTypeParser(['application/zip', 'application/octet-stream', 'application/x-zip-compressed'], { parseAs: 'buffer' }, (_req, body, done) => done(null, body));
+  app.addContentTypeParser(['application/zip', 'application/octet-stream', 'application/x-zip-compressed', 'image/jpeg', 'video/mp4'], { parseAs: 'buffer' }, (_req, body, done) => done(null, body));
   // Meta callbacks post application/x-www-form-urlencoded.
   app.addContentTypeParser('application/x-www-form-urlencoded', { parseAs: 'string' }, (_req, body, done) => {
     done(null, Object.fromEntries(new URLSearchParams(String(body))));
@@ -41,7 +41,7 @@ export async function buildApp(ctx: Ctx, runtime: Runtime = { startedAt: Date.no
     reply.header('permissions-policy', 'camera=(), microphone=(), geolocation=()');
     reply.header(
       'content-security-policy',
-      "default-src 'self'; img-src 'self' data: https://*.cdninstagram.com https://*.fbcdn.net; style-src 'self'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+      "default-src 'self'; img-src 'self' data: blob: https://*.cdninstagram.com https://*.fbcdn.net; media-src 'self' blob:; style-src 'self'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
     );
     if (ctx.config.env === 'production') reply.header('strict-transport-security', 'max-age=31536000; includeSubDomains');
     return payload;

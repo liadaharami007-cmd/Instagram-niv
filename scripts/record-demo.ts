@@ -115,6 +115,24 @@ try {
   await page.waitForSelector('text=הפסקת בטיחות');
   await caption('שמירה על החשבון: המתנה בטוחה בין פעולות, מגבלות יומיות ושעתיות', 3800);
 
+  await click(page.locator('.tabs >> text=📅 פרסום'));
+  await page.waitForSelector('text=פרסום חדש');
+  await caption('📅 פרסום מתוזמן — אוטומטי לגמרי, דרך ה-API הרשמי', 3200);
+  await show(page.locator('.dropzone'), 900);
+  await caption('מעלים תמונה או סרטון, כותבים כיתוב, בוחרים שעה — והמערכת מפרסמת לבד', 3400);
+  await show(page.locator('.card:has-text("מתוזמנים")').first(), 1200);
+  await caption('פוסטים, רילס וסטוריז — רשימת המתוזמנים וההיסטוריה', 2800);
+
+  await click(page.locator('.tabs >> text=💬 מענה אוטומטי'));
+  await page.waitForSelector('text=הפעלה בלחיצה');
+  await caption('💬 מענה אוטומטי לתגובות ולהודעות — אוטומטי לגמרי', 3200);
+  await click(page.locator('.template:has-text("קופון") >> text=➕ הפעלה'));
+  await page.waitForSelector('.list-item:has-text("קופון")');
+  await caption('תבנית בלחיצה: מי שכותב "קופון" מקבל קוד הנחה בפרטי', 3400);
+  await scroll(700);
+  await caption('כל תגובה שנשלחה מתועדת — עם הגבלה נגד ספאם', 3200);
+  await page.mouse.wheel(0, -4000);
+
   await click(page.locator('.tabs >> text=Unfollow'));
   await page.waitForSelector('text=כללי הסרת מעקב');
   await caption('Unfollow לפי כללים: רק מי שלא עוקב בחזרה, עם רשימה לבנה', 3200);

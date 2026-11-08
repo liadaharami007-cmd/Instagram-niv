@@ -1,10 +1,13 @@
 import { api } from './api.js';
 import { h, mount, fmt, delta, signed, dt, ago, countdown, toast, statusBadge, loading, action, lineChart, barChart } from './ui.js';
 import { state, refreshAccounts, onLeave, activityList } from './app.js';
+import { publishTab, repliesTab } from './engage.js';
 
 const TABS = [
   ['growth', 'צמיחה ונתונים'],
   ['session', '▶ סשן עבודה'],
+  ['publish', '📅 פרסום'],
+  ['replies', '💬 מענה אוטומטי'],
   ['follow', 'Follow'],
   ['unfollow', 'Unfollow'],
   ['stories', 'סטוריז'],
@@ -40,11 +43,11 @@ export async function accountPage(main, id, tab, query) {
     body,
   );
   const ctx = { id, account, settings, isAdmin, query };
-  const pages = { session: sessionTab, growth: growthTab, follow: (b, c) => manualTab(b, c, 'follow'), unfollow: unfollowTab, stories: storiesTab, automation: automationTab, safety: safetyTab, activity: activityTab, settings: settingsTab };
+  const pages = { session: sessionTab, publish: publishTab, replies: repliesTab, growth: growthTab, follow: (b, c) => manualTab(b, c, 'follow'), unfollow: unfollowTab, stories: storiesTab, automation: automationTab, safety: safetyTab, activity: activityTab, settings: settingsTab };
   await (pages[tab] || growthTab)(body, ctx);
 }
 
-const rerender = () => window.dispatchEvent(new HashChangeEvent('hashchange'));
+export const rerender = () => window.dispatchEvent(new HashChangeEvent('hashchange'));
 
 // ───────────── Growth analytics ─────────────
 async function growthTab(body, { id, account }) {
@@ -188,7 +191,7 @@ const SKIP_REASONS = {
   limit_reached: 'הגעת למגבלה היומית', needs_relationship_import: 'נדרש ייבוא קובץ עוקבים מאינסטגרם', no_candidates: 'אין יעדים מתאימים', cooldown: 'הקפאת בטיחות', account_paused: 'החשבון מושהה',
 };
 
-function manualNotice() {
+export function manualNotice() {
   return h('div', { class: 'alert warn small' },
     'ל-Meta אין API רשמי לפעולה זו. המערכת מתכננת רשימה יומית בקצב בטוח, פותחת עבורך את אינסטגרם, ומתעדת רק פעולות שאישרת שבוצעו בפועל. המערכת לא מבצעת את הפעולה בעצמה ולא עוקפת מנגנוני הגנה.');
 }
@@ -233,19 +236,31 @@ function taskRunner(id, type, onChange) {
       onChange?.();
     });
     doneBtn.addEventListener('click', complete('done'));
+    const openLink = h('a', { class: 'btn primary big', href: task.link, target: '_blank', rel: 'noopener', onclick: () => { opened = true; tick(); } }, `↗ ${info.openLabel}`);
+    const skipBtn = h('button', { class: 'btn', onclick: complete('skipped') }, 'דילוג');
+    // Keyboard: Enter = open / confirm, S = skip (fast desktop work)
+    const onKey = (e) => {
+      if (!box.isConnected || /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName || '')) return;
+      if (e.key === 'Enter') { e.preventDefault(); if (!opened) openLink.click(); else if (!doneBtn.disabled) doneBtn.click(); }
+      else if (e.key === 's' || e.key === 'S' || e.key === 'ד') { e.preventDefault(); skipBtn.click(); }
+    };
+    document.removeEventListener('keydown', box._onKey || (() => {}));
+    box._onKey = onKey;
+    document.addEventListener('keydown', onKey);
+    onLeave(() => document.removeEventListener('keydown', onKey));
     mount(box,
       h('div', { class: 'small muted' }, `${info.verb}`),
       h('div', { class: 'handle' }, `@${task.username}`),
       h('div', { class: 'small muted' }, task.reason),
-      h('div', { class: 'row', }, h('span', { class: 'spacer' }),
-        h('a', { class: 'btn primary big', href: task.link, target: '_blank', rel: 'noopener', onclick: () => { opened = true; tick(); } }, `↗ ${info.openLabel}`), h('span', { class: 'spacer' })),
+      h('div', { class: 'row', }, h('span', { class: 'spacer' }), openLink, h('span', { class: 'spacer' })),
       gateMsg,
       h('div', { class: 'task-actions' },
         doneBtn,
-        h('button', { class: 'btn', onclick: complete('skipped') }, 'דילוג'),
+        skipBtn,
         type === 'story_like' ? h('button', { class: 'btn', onclick: complete('no_story') }, 'אין סטורי פעיל') : h('button', { class: 'btn', onclick: complete('not_found') }, 'החשבון לא קיים'),
         h('button', { class: 'btn danger', onclick: complete('failed') }, 'נכשל')),
       counter,
+      h('div', { class: 'small muted hide-sm' }, '⌨️ Enter — פתיחה ואישור · S — דילוג'),
       h('div', { class: 'small muted' }, 'אינסטגרם הציג "נסה שוב מאוחר יותר" או חסימה? ', h('a', { href: `#/a/${id}/safety` }, 'דווח מיד בעמוד הבטיחות')));
     tick();
     timer = setInterval(tick, 1000);

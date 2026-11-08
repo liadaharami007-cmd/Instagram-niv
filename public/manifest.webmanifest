@@ -1,0 +1,11 @@
+{
+  "name": "Instagram Niv Bot",
+  "short_name": "Niv Bot",
+  "lang": "he",
+  "dir": "rtl",
+  "start_url": "/#/",
+  "display": "standalone",
+  "background_color": "#f5f6fa",
+  "theme_color": "#5b3df5",
+  "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}
