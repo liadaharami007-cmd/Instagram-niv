@@ -124,7 +124,7 @@ try {
 
   await click(page.locator('.tabs a.tab').filter({ hasText: 'נתונים' }).first());
   await page.waitForSelector('text=דוח שבועי');
-  await caption('נתוני צמיחה אמיתיים מהחשבון — הגרפים מתמלאים מיום ליום', 3400);
+  await caption('נתוני הצמיחה של החשבון מתעדכנים לבד — הגרפים מתמלאים מיום ליום', 3400);
   await click(page.locator('.tabs a.tab').filter({ hasText: 'אוטומטי' }).first());
   await page.waitForSelector('.feature.unsupported');
   await show(page.locator('.feature.unsupported'), 500);
