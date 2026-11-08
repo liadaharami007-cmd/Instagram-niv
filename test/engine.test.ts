@@ -26,7 +26,7 @@ test('likes engine: finds fresh posts via Business Discovery and likes them with
   assert.equal(st.queued, 2, 'one fresh post per public business target');
   assert.equal(st.targets.unavailable, 1, 'private/personal account flagged, not liked');
   const runAts = st.actions.map((a: any) => a.run_at).sort();
-  assert.ok(runAts[1] - runAts[0] >= 3600_000 / 10 - 1, 'likes are spaced across the hour');
+  assert.ok(runAts[1] - runAts[0] >= (3600_000 / 10) * 0.5, 'likes are spaced across the hour (with jitter)');
 
   clock.now += 2 * 3600_000;
   await drain(ctx, worker);

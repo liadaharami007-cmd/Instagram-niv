@@ -96,7 +96,7 @@ export class MetaOAuth {
     try {
       body = JSON.parse(text);
     } catch {
-      throw new MetaApiError(res.status, undefined, undefined, `Non-JSON response from Meta (HTTP ${res.status})`);
+      throw new MetaApiError(res.status, undefined, undefined, `Meta rejected the request (HTTP ${res.status}, non-JSON). Check the App ID / App Secret / Redirect URI configured in the Meta App Dashboard.`);
     }
     if (!res.ok || body.error || body.error_type) {
       const e = body.error ?? { message: body.error_message, code: body.code };

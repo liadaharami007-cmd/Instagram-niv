@@ -209,10 +209,10 @@ function accountCard(a) {
       h('span', { class: 'spacer' }), a.is_demo ? h('span', { class: 'badge primary' }, 'הדגמה') : null, statusBadge(a.status)),
     h('div', { class: 'row', }, h('span', { class: 'kpi' }, h('span', { class: 'value num' }, fmt(a.summary.followers))), h('span', { class: 'muted small' }, 'עוקבים'), delta(a.summary.change1d), h('span', { class: 'small muted' }, 'היום')),
     a.last_error && a.status !== 'active' ? h('div', { class: 'alert bad small' }, a.last_error) : null,
-    h('h3', {}, 'משימות ידניות היום'),
+    h('h3', {}, 'משימות ידניות היום (לא אוטומטי)'),
     line('Follow', t.follow), line('Unfollow', t.unfollow), line('לייקים לסטוריז', t.story_like),
     h('div', { class: 'row between' }, h('span', { class: 'small muted' }, `סנכרון אחרון: ${ago(a.last_synced_at)}`),
-      h('a', { class: 'btn primary', href: `#/a/${a.id}/session` }, '▶ סשן עבודה')));
+      h('a', { class: 'btn', href: `#/a/${a.id}/capabilities` }, 'מה עובד בחשבון')));
 }
 
 // ───────────── Connect ─────────────
@@ -264,7 +264,7 @@ async function connectPage(main, query) {
         h('thead', {}, h('tr', {}, h('th', {}, 'יכולת'), h('th', {}, 'אופן ביצוע'), h('th', { class: 'hide-sm' }, 'פירוט'))),
         h('tbody', {}, meta.capabilities.map((c) => h('tr', {},
           h('td', {}, h('strong', {}, c.title)),
-          h('td', {}, c.support === 'manual' ? h('span', { class: 'badge warn' }, 'ביצוע ידני מנוהל') : c.support === 'official_fb_only' ? h('span', { class: 'badge primary' }, 'API רשמי (Facebook Login)') : h('span', { class: 'badge good' }, 'API רשמי — אוטומטי')),
+          h('td', {}, c.support === 'not_supported' ? h('span', { class: 'badge bad' }, '❌ לא נתמך ע״י Meta') : c.providers.length === 1 ? h('span', { class: 'badge primary' }, '✅ אוטומטי — Facebook Login בלבד') : h('span', { class: 'badge good' }, '✅ אוטומטי (API רשמי)')),
           h('td', { class: 'small muted hide-sm' }, c.note))))))),
   );
 }

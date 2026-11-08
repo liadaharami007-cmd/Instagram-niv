@@ -214,6 +214,17 @@ export class DemoService {
         reply.run(orgId, id, rid, ch, `demo_src_${i}`, handle(), text, act, rep, now - i * 47 * 60_000);
       }
 
+      // ── Likes engine history (sample) ──
+      const likeRow = db.raw.prepare(
+        `INSERT INTO engagement_actions (org_id, account_id, target_username, media_id, media_type, action, status, error, run_at, executed_at, created_at) VALUES (?,?,?,?,?, 'like', ?, ?, ?, ?, ?)`,
+      );
+      for (let i = 0; i < 16; i++) {
+        const t = now - i * 37 * 60_000;
+        const failed = i === 5;
+        likeRow.run(orgId, id, handle(), `demo_like_${i}`, i % 3 ? 'FEED' : 'REELS', failed ? 'failed' : 'done', failed ? 'הפוסט נמחק או שהחשבון הפך לפרטי' : null, t, t, t);
+      }
+      db.run(`UPDATE targets SET auto_like = 1 WHERE account_id = ? AND rowid IN (SELECT rowid FROM targets WHERE account_id = ? LIMIT 20)`, id, id);
+
       this.ctx.safety.event(orgId, id, 'warning', 'usage_high', 'ניצול מכסת ה-API גבוה (78%) — הדגמה', {});
       this.ctx.safety.event(orgId, id, 'info', 'auto_resumed', 'ההשהיה הסתיימה — החשבון חזר לפעילות (הדגמה)', {});
       this.ctx.audit.record(orgId, 'demo.created', { userId, accountId: id });

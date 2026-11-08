@@ -2,15 +2,18 @@ import { api } from './api.js';
 import { h, mount, fmt, delta, signed, dt, ago, countdown, toast, statusBadge, loading, action, lineChart, barChart } from './ui.js';
 import { state, refreshAccounts, onLeave, activityList } from './app.js';
 import { publishTab, repliesTab } from './engage.js';
+import { capabilitiesTab, likesTab } from './engine.js';
 
 const TABS = [
   ['growth', 'צמיחה ונתונים'],
-  ['session', '▶ סשן עבודה'],
+  ['capabilities', '✅ מה עובד'],
+  ['likes', '❤️ לייקים אוטומטיים'],
+  ['follow', 'Follow (ידני)'],
+  ['unfollow', 'Unfollow (ידני)'],
+  ['stories', 'סטוריז (ידני)'],
+  ['session', 'משימות ידניות'],
   ['publish', '📅 פרסום'],
   ['replies', '💬 מענה אוטומטי'],
-  ['follow', 'Follow'],
-  ['unfollow', 'Unfollow'],
-  ['stories', 'סטוריז'],
   ['automation', 'אוטומציות'],
   ['safety', 'בטיחות חשבון'],
   ['activity', 'היסטוריה'],
@@ -29,7 +32,6 @@ export async function accountPage(main, id, tab, query) {
         h('h1', { class: 'ltr' }, `@${account.username}`),
         h('div', { class: 'row small muted' }, statusBadge(account.status), h('span', {}, [account.name, `${fmt(summary.followers)} עוקבים`, `סונכרן ${ago(account.last_synced_at)}`].filter(Boolean).join(' · ')))),
       h('span', { class: 'spacer' }),
-      tab !== 'session' && account.status !== 'needs_reauth' ? h('a', { class: 'btn primary', href: `#/a/${id}/session` }, '▶ סשן עבודה') : null,
       account.status === 'needs_reauth'
         ? h('a', { class: 'btn primary', href: '#/accounts' }, 'חיבור מחדש')
         : paused
@@ -43,7 +45,7 @@ export async function accountPage(main, id, tab, query) {
     body,
   );
   const ctx = { id, account, settings, isAdmin, query };
-  const pages = { session: sessionTab, publish: publishTab, replies: repliesTab, growth: growthTab, follow: (b, c) => manualTab(b, c, 'follow'), unfollow: unfollowTab, stories: storiesTab, automation: automationTab, safety: safetyTab, activity: activityTab, settings: settingsTab };
+  const pages = { capabilities: capabilitiesTab, likes: likesTab, session: sessionTab, publish: publishTab, replies: repliesTab, growth: growthTab, follow: (b, c) => manualTab(b, c, 'follow'), unfollow: unfollowTab, stories: storiesTab, automation: automationTab, safety: safetyTab, activity: activityTab, settings: settingsTab };
   await (pages[tab] || growthTab)(body, ctx);
 }
 
@@ -192,8 +194,9 @@ const SKIP_REASONS = {
 };
 
 export function manualNotice() {
-  return h('div', { class: 'alert warn small' },
-    'ל-Meta אין API רשמי לפעולה זו. המערכת מתכננת רשימה יומית בקצב בטוח, פותחת עבורך את אינסטגרם, ומתעדת רק פעולות שאישרת שבוצעו בפועל. המערכת לא מבצעת את הפעולה בעצמה ולא עוקפת מנגנוני הגנה.');
+  return h('div', { class: 'alert bad' },
+    h('strong', {}, '❌ לא אוטומטי — Meta לא מספקת שום ממשק רשמי לפעולה זו. '),
+    'המסך הזה הוא כלי עזר לתיעוד פעולות שאדם מבצע בעצמו באינסטגרם, ואינו מימוש של הדרישה לבוט אוטומטי. המערכת לא מבצעת את הפעולה ולא מדווחת עליה כבוצעה ללא אישור אדם.');
 }
 
 /** The guided "work mode" card used by Follow / Unfollow / Story likes. */

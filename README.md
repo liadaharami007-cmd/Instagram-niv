@@ -7,22 +7,27 @@ Instagram Niv Bot manages growth for several Instagram professional accounts. It
 | ![overview](docs/screenshots/0-overview.png) | ![growth](docs/screenshots/1-growth.png) |
 | ![follow](docs/screenshots/2-follow.png) | ![safety](docs/screenshots/5-safety.png) |
 
-## What it can do
+## Requirement status (checked against Meta's official documentation, October 2026)
 
-| Area | How it runs | Details |
-|---|---|---|
-| Profile and follower count | ✅ Official API, automatic | Followers, following and posts. A snapshot is saved every 3 hours, so growth figures come from real data. |
-| Growth Analytics | ✅ Official API, automatic | Daily, weekly and monthly change. Also new followers, follows and unfollows, reach, views, interactions, likes, comments, shares and saves. Includes charts, a weekly comparison, a CSV report and a comparison between accounts. |
-| Post and Reels performance | ✅ Official API, automatic | Reach, views, saves, shares and interactions for each post. |
-| Your own stories | ✅ Official API, automatic | Stories and their stats are only available for 24 hours, so the system saves them every 4 hours. |
-| Competitors and audience research | ✅ Official API (Facebook Login only) | Business Discovery shows follower and post counts for other business and creator accounts. |
-| **Scheduled publishing** | ✅ Official API, automatic | Posts (JPEG), Reels and Stories at a set time. Container → processing → publish, with a check of Meta's 100-posts-per-24h limit. |
-| **Comment auto-replies** | ✅ Official API, automatic | By keyword or for every comment: a public reply (random variants) and/or a private message. Real time via Webhooks, or a check every 15 minutes. |
-| **DM auto-replies** | ✅ Official API, automatic | A welcome message and keyword-based answers. Requires Webhooks. |
-| **Follow** | 🟡 Guided manual workflow | Audience lists, a safe daily plan, opening the profile in Instagram, confirming the action, and a log of what was done. |
-| **Unfollow** | 🟡 Guided manual workflow | Rules (days since you followed, not following back, whitelist). Real follower data comes from Instagram's official data download. It also shows who stopped following you. |
-| **Story likes** | 🟡 Guided manual workflow | A queue with a minimum interval per account, plus a "no active story" option. |
-| **Meta Account Safety** | ✅ Automatic | Detects expired tokens, missing permissions, rate limits and Meta blocks. Watches usage headers and slows down before the limit. Includes a circuit breaker, automatic pause and resume, pacing for manual actions, and a freeze after an action block. |
+| # | Requirement | Status | Details |
+|---|---|---|---|
+| 1 | Automatic Follow | ❌ **Not possible through an authorized API** | Meta has no follow endpoint, in any login type (IG User reference). The system doesn't automate it and never reports it as done. There's an optional tool for logging manual actions only. |
+| 2 | Automatic Unfollow | ❌ **Not possible through an authorized API** | No unfollow endpoint and no followers list. "Doesn't follow back" is computed from Instagram's official data-download file, but the action itself is manual. |
+| 3 | Likes on stories | ❌ **Not possible through an authorized API** | Meta's Likes API docs say explicitly: "Stories is not supported". |
+| 3* | Likes on target audience's posts and Reels | ✅ **Real background engine** | Official Likes API (`POST /{ig-user-id}/likes`, `instagram_manage_engagement`, **Facebook Login only**). Posts are found through Business Discovery, likes are spaced within daily and hourly budgets, and a like counts only when Meta returns `success:true`. Requires App Review. |
+| 4 | Growth analytics | ✅ Implemented | Follower snapshots, daily/weekly/monthly change, Insights (new followers, follows/unfollows, reach, views, engagement), charts, weekly report, CSV, account comparison, competitors (Facebook Login). |
+| 5 | Meta Account Safety | ✅ Implemented | Classifies errors (token, permission, rate limit, policy block), reads usage headers, pauses before the limit, circuit breaker, stops jobs on an unhealthy account. |
+| – | Scheduled publishing, auto-replies | Extras outside the original scope | Added on request. Not part of the requirement. |
+
+Each account also has a **"✅ מה עובד" (what works)** screen that shows each capability's status from real runs (verified / failing / not run yet / not supported), not from assumptions.
+
+### Verifying against the real Meta API
+```bash
+npm run verify:meta                                   # without credentials: endpoints, version, error format, classification
+META_TEST_IG_TOKEN=... npm run verify:meta            # real account (Instagram Login): all syncs through the real worker
+META_TEST_FB_TOKEN=... META_TEST_LIKE_MEDIA_ID=... npm run verify:meta   # Facebook Login + a real like
+```
+Behind an HTTP proxy, run with `NODE_USE_ENV_PROXY=1`.
 
 ## Demo mode and work session
 

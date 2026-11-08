@@ -78,7 +78,7 @@ async function scroll(px: number, steps = 12) {
 try {
   await page.goto(`${base}/#/register`);
   await page.waitForSelector('#orgName');
-  await caption('Instagram Niv Bot — ניהול צמיחה באינסטגרם, דרך ה-API הרשמי של Meta', 3200);
+  await caption('Instagram Niv Bot — אוטומציה לאינסטגרם, רק דרך ה-API הרשמי של Meta', 3200);
   await page.locator('#orgName').pressSequentially('Niv Agency', { delay: 45 });
   await page.locator('#name').pressSequentially('ניב', { delay: 45 });
   await page.locator('#email').pressSequentially('demo@nivbot.app', { delay: 30 });
@@ -103,17 +103,26 @@ try {
   await page.mouse.wheel(0, -6000);
   await sleep(500);
 
-  await click(page.locator('.acct-head >> text=▶ סשן עבודה'));
-  await page.waitForSelector('.task-card .handle');
-  await caption('סשן עבודה: כל משימות היום ברצף אחד — Follow, סטוריז ו-Unfollow', 3400);
-  await caption('המערכת פותחת את הפרופיל באינסטגרם — אתה מבצע ומאשר', 2600);
-  const [popup] = await Promise.all([context.waitForEvent('page'), click(page.locator('.task-card a.btn.primary'))]);
-  await sleep(900);
-  await popup.close();
-  await page.bringToFront();
-  await click(page.locator('.task-card .btn.good'));
-  await page.waitForSelector('text=הפסקת בטיחות');
-  await caption('שמירה על החשבון: המתנה בטוחה בין פעולות, מגבלות יומיות ושעתיות', 3800);
+  await click(page.locator('.tabs >> text=✅ מה עובד'));
+  await page.waitForSelector('text=מצב בחשבון הזה');
+  await caption('שקיפות מלאה: מה אוטומטי דרך ה-API הרשמי של Meta — ומה לא נתמך', 3600);
+  await show(page.locator('tr:has(strong:text-is("Follow אוטומטי"))'), 600);
+  await caption('Follow, Unfollow ולייקים לסטוריז — אין להם ממשק רשמי ב-Meta, ולכן הם לא אוטומטיים', 4200);
+  await scroll(320);
+  await caption('נתוני צמיחה, בטיחות חשבון ולייקים לפוסטים — אוטומטיים, ומאומתים בהרצה אמיתית', 3800);
+  await page.mouse.wheel(0, -3000);
+
+  await click(page.locator('.tabs >> text=❤️ לייקים אוטומטיים'));
+  await page.waitForSelector('text=יומן פעולות');
+  await caption('❤️ מנוע לייקים אמיתי (Likes API הרשמי): פוסטים ורילס של קהל היעד', 3800);
+  await caption('קצב מבוקר, מגבלה יומית ושעתית, הפעלה ועצירה בכל רגע — וכל פעולה מנוטרת', 3800);
+  await scroll(500);
+  await sleep(1200);
+  await page.mouse.wheel(0, -3000);
+
+  await click(page.locator('.tabs a.tab').filter({ hasText: /^Follow / }));
+  await page.waitForSelector('.task-card');
+  await caption('Follow / Unfollow: כלי עזר לתיעוד ביצוע ידני בלבד — לא בוט', 3800);
 
   await click(page.locator('.tabs >> text=📅 פרסום'));
   await page.waitForSelector('text=פרסום חדש');

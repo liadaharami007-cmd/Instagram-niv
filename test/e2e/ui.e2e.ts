@@ -88,6 +88,17 @@ try {
   step('growth dashboard shows synced followers, charts, weekly report, posts');
 
   const accUrl = page.url().replace(/\/growth.*/, '');
+  await page.goto(`${accUrl}/capabilities`);
+  await page.waitForSelector('text=מה עובד');
+  await page.waitForSelector('tbody tr');
+  await page.screenshot({ path: join(shots, '9-capabilities.png'), fullPage: true });
+  await waitFor(async () => (await page.locator('tr:has(strong:text-is("Follow אוטומטי")) >> text=לא נתמך').count()) === 1);
+  assert.equal(await page.locator('tr:has-text("מספר עוקבים") >> text=עובד — אומת').count(), 1, 'profile sync verified by a real run');
+  await page.screenshot({ path: join(shots, '9-capabilities.png'), fullPage: true });
+  await page.goto(`${accUrl}/likes`);
+  await page.waitForSelector('text=Facebook Login');
+  assert.ok(await page.isDisabled('text=▶ הפעלה'), 'likes engine cannot start on Instagram-Login accounts');
+  step('capabilities: unsupported actions shown as not supported; likes engine blocked with reason');
   await page.goto(`${accUrl}/follow`);
   await page.fill('textarea[name=usernames]', 'lead.one\nlead.two\n@lead.three');
   await page.fill('input[name=segment]', 'לידים');
@@ -160,6 +171,31 @@ try {
   await page.waitForSelector('td:has-text("happy.customer")');
   await page.screenshot({ path: join(shots, '8-replies.png'), fullPage: true });
   step('auto-reply: template enabled in one click, webhook comment answered publicly + privately');
+
+  // Likes engine: reconnect the same IG account through Facebook Login (the only login with the Likes API)
+  const fbConn = await page.evaluate(async () => (await fetch('/api/accounts/connect-token', { method: 'POST', headers: { 'content-type': 'application/json', 'x-requested-with': 'niv-bot' }, body: JSON.stringify({ provider: 'facebook_login', token: 'fb-user-token-xxxxxxxxxxxxxxxxxx' }) })).json());
+  assert.equal(fbConn.accounts[0].provider, 'facebook_login');
+  await page.goto(`${accUrl}/settings`);
+  await page.fill('input[name=active_hour_start]', '0');
+  await page.fill('input[name=active_hour_end]', '24');
+  await page.click('form >> text=שמירה');
+  await page.waitForSelector('text=נשמר');
+  await page.goto(`${accUrl}/likes`);
+  await page.waitForSelector('text=המנוע כבוי');
+  await page.fill('input[name=usernames]', 'target.biz, competitor.one');
+  await page.click('text=הוספה למנוע');
+  await page.waitForSelector('text=▶ הפעלה');
+  await page.click('text=▶ הפעלה');
+  await waitFor(async () => {
+    await page.reload();
+    await page.waitForSelector('text=יומן פעולות');
+    return (await page.locator('.badge:has-text("ממתין")').count()) === 2;
+  }, 20_000);
+  await page.screenshot({ path: join(shots, '10-likes-engine.png'), fullPage: true });
+  await page.click('text=⏹ עצירה');
+  await waitFor(async () => (await page.locator('.badge:has-text("בוטל")').count()) === 2);
+  assert.equal(fake.state.likes.length, 0, 'stopped before any scheduled like ran');
+  step('likes engine: started from UI, found fresh posts via Business Discovery, queued spaced likes, stopped and cancelled');
 
   await page.goto(`${accUrl}/safety`);
   await page.waitForSelector('text=אירועי בטיחות');
