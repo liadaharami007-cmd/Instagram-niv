@@ -100,7 +100,7 @@ try {
   await caption('שלב 1: מדביקים את הטוקן מ-Meta (או לוחצים "חיבור עם Meta")', 3200);
   await page.locator('input[name=token]').pressSequentially('IGAAxxxxxxxxxxxxxxxxxxxxxxxxxx', { delay: 15 });
   await caption('לוחצים "אימות וחיבור"…', 1200);
-  await click(page.locator('text=אימות וחיבור'));
+  await click(page.locator('button:has-text("אימות וחיבור")'));
   await page.waitForSelector('text=הכול פועל אוטומטית');
   await caption('שלב 2: זהו. הכול כבר פועל אוטומטית — בלי להפעיל שום דבר', 3600);
   await page.reload();
