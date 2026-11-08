@@ -9,7 +9,7 @@ export const SCOPES: Record<Provider, string[]> = {
     'instagram_business_manage_comments', 'instagram_business_manage_messages',
   ],
   facebook_login: [
-    'instagram_basic', 'instagram_manage_insights', 'instagram_content_publish', 'instagram_manage_comments', 'instagram_manage_messages',
+    'instagram_basic', 'instagram_manage_insights', 'instagram_manage_engagement', 'instagram_content_publish', 'instagram_manage_comments', 'instagram_manage_messages',
     'pages_show_list', 'pages_read_engagement', 'pages_manage_metadata', 'business_management',
   ],
 };
@@ -28,6 +28,9 @@ export interface ConnectedProfile {
   token: string;
   tokenExpiresAt: number | null;
   scopes: string[];
+  /** Facebook Login only: the long-lived User token (required by e.g. the Likes endpoint). */
+  userToken?: string;
+  userTokenExpiresAt?: number | null;
 }
 
 export const IG_PROFILE_FIELDS = 'user_id,username,name,account_type,profile_picture_url,followers_count,follows_count,media_count';
@@ -128,7 +131,7 @@ export class MetaOAuth {
     const longUrl = new URL(`${m.facebookGraphBase}/${m.graphVersion}/oauth/access_token`);
     longUrl.search = new URLSearchParams({ grant_type: 'fb_exchange_token', client_id: m.fbAppId, client_secret: m.fbAppSecret, fb_exchange_token: short.access_token }).toString();
     const long = await this.json(longUrl);
-    return this.profilesFromFacebookUserToken(long.access_token);
+    return this.profilesFromFacebookUserToken(long.access_token, long.expires_in ? this.now() + Number(long.expires_in) * 1000 : null);
   }
 
   async exchangeInstagramLongLived(shortToken: string): Promise<{ token: string; expiresAt: number }> {
@@ -165,7 +168,7 @@ export class MetaOAuth {
   }
 
   /** Resolves every Instagram professional account linked to the user's Facebook Pages. */
-  async profilesFromFacebookUserToken(userToken: string): Promise<ConnectedProfile[]> {
+  async profilesFromFacebookUserToken(userToken: string, userTokenExpiresAt: number | null = null): Promise<ConnectedProfile[]> {
     const perms = await this.graph.request<{ data: { permission: string; status: string }[] }>({ provider: 'facebook_login', token: userToken, path: 'me/permissions' });
     const scopes = perms.data.data.filter((p) => p.status === 'granted').map((p) => p.permission);
     const pages = await this.graph.paginate<any>({
@@ -191,6 +194,8 @@ export class MetaOAuth {
           token: p.access_token, // Page tokens derived from a long-lived user token do not expire.
           tokenExpiresAt: null,
           scopes,
+          userToken,
+          userTokenExpiresAt,
         };
       });
   }

@@ -62,7 +62,7 @@ export function loadConfig(overrides: Partial<Record<string, string>> = {}): Con
   }
 
   const port = Number(e.PORT ?? 3000);
-  const graphVersion = e.META_GRAPH_VERSION ?? 'v23.0';
+  const graphVersion = e.META_GRAPH_VERSION ?? 'v27.0';
   if (!/^v\d+\.\d+$/.test(graphVersion)) throw new Error('META_GRAPH_VERSION must look like v23.0');
 
   const databasePath = e.DATABASE_PATH ?? resolve(process.cwd(), 'data', 'niv-bot.db');

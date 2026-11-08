@@ -1,96 +1,84 @@
 import type { Provider } from './graph-client.ts';
 
-export type Support = 'official' | 'official_fb_only' | 'manual';
+/**
+ * automatic          – runs in the background through an official Meta endpoint.
+ * not_supported      – Meta exposes NO endpoint. The product does not automate it and never reports it as done.
+ */
+export type Support = 'automatic' | 'not_supported';
 
 export interface Capability {
   key: string;
+  /** The original requirement this answers (1–5), or 'extra' when it was added later. */
+  requirement: '1-follow' | '2-unfollow' | '3-story-likes' | '4-analytics' | '5-safety' | 'extra';
   title: string;
   support: Support;
+  /** Login types for which the endpoint exists. Empty for not_supported. */
+  providers: Provider[];
   permissions: Partial<Record<Provider, string[]>>;
+  /** Job types whose real outcomes prove the capability works for an account. */
+  jobTypes: string[];
   note: string;
+  source: string;
 }
 
-/**
- * What the official Meta platform allows (Instagram Graph API, professional accounts).
- * Anything marked "manual" has NO official endpoint; the product runs it as a guided
- * human workflow and never automates it through unofficial means.
- */
+const DOCS = 'https://developers.facebook.com/documentation/instagram-platform';
+
+/** Verified against Meta's Instagram Platform docs (IG User reference, updated Oct 2026). */
 export const CAPABILITIES: Capability[] = [
   {
-    key: 'profile',
-    title: 'נתוני פרופיל ומספר עוקבים',
-    support: 'official',
-    permissions: { instagram_login: ['instagram_business_basic'], facebook_login: ['instagram_basic', 'pages_show_list'] },
-    note: 'followers_count / follows_count / media_count — נשמר כצילום מצב כל 3 שעות לבניית גרף צמיחה אמיתי.',
+    key: 'follow', requirement: '1-follow', title: 'Follow אוטומטי', support: 'not_supported', providers: [], permissions: {}, jobTypes: [],
+    note: 'ל-Meta אין שום endpoint לביצוע Follow (גם לא ב-Facebook Login / Unified Login / Advanced Access). אוטומציה אפשרית רק בעקיפת ההגנות של אינסטגרם — והמערכת לא עושה זאת. כלי התיעוד הידני במערכת אינו מילוי של הדרישה.',
+    source: `${DOCS}/instagram-graph-api/reference/ig-user`,
   },
   {
-    key: 'insights',
-    title: 'Insights: חשיפה, צפיות, מעורבות, עוקבים חדשים',
-    support: 'official',
-    permissions: { instagram_login: ['instagram_business_manage_insights'], facebook_login: ['instagram_manage_insights'] },
-    note: 'follower_count זמין רק לחשבונות עם 100+ עוקבים ול-30 הימים האחרונים. follows_and_unfollows ע"פ Meta.',
+    key: 'unfollow', requirement: '2-unfollow', title: 'Unfollow אוטומטי', support: 'not_supported', providers: [], permissions: {}, jobTypes: [],
+    note: 'אין endpoint לביצוע Unfollow ואין endpoint לרשימת עוקבים/נעקבים. המערכת יכולה רק לנתח את קובץ ההורדה הרשמי (מי לא עוקב בחזרה) — הביצוע עצמו ידני.',
+    source: `${DOCS}/instagram-graph-api/reference/ig-user`,
   },
   {
-    key: 'media',
-    title: 'ביצועי פוסטים ורילס',
-    support: 'official',
+    key: 'story_like', requirement: '3-story-likes', title: 'לייקים לסטוריז של אחרים', support: 'not_supported', providers: [], permissions: {}, jobTypes: [],
+    note: 'Meta מציינת במפורש בתיעוד ה-Likes API: "Stories is not supported". אין גם API לצפייה בסטוריז של חשבונות אחרים.',
+    source: `${DOCS}/instagram-graph-api/reference/ig-user/user-likes`,
+  },
+  {
+    key: 'likes', requirement: '3-story-likes', title: 'לייקים אוטומטיים לפוסטים ורילס של קהל היעד', support: 'automatic', providers: ['facebook_login'],
+    permissions: { facebook_login: ['instagram_basic', 'instagram_manage_engagement', 'instagram_manage_insights', 'pages_read_engagement'] }, jobTypes: ['like_media'],
+    note: 'ה-API הרשמי היחיד לאינטראקציה (Likes API, 2026): פוסטים, רילס וקרוסלות של חשבונות ציבוריים. לא סטוריז, לא חשבונות פרטיים. Facebook Login בלבד. נעילה לשעה ביותר מ-50 בקשות ב-5 שניות. מציאת הפוסטים — Business Discovery (חשבונות עסקיים/יוצרים בלבד).',
+    source: `${DOCS}/instagram-graph-api/reference/ig-user/user-likes`,
+  },
+  {
+    key: 'profile', requirement: '4-analytics', title: 'מספר עוקבים ונתוני פרופיל', support: 'automatic', providers: ['instagram_login', 'facebook_login'],
+    permissions: { instagram_login: ['instagram_business_basic'], facebook_login: ['instagram_basic', 'pages_show_list'] }, jobTypes: ['sync_profile'],
+    note: 'צילום מצב כל 3 שעות → שינוי יומי/שבועי/חודשי מנתונים אמיתיים בלבד.', source: `${DOCS}/instagram-graph-api/reference/ig-user`,
+  },
+  {
+    key: 'insights', requirement: '4-analytics', title: 'Insights: עוקבים חדשים, follows/unfollows, חשיפה, צפיות, מעורבות', support: 'automatic', providers: ['instagram_login', 'facebook_login'],
+    permissions: { instagram_login: ['instagram_business_manage_insights'], facebook_login: ['instagram_manage_insights'] }, jobTypes: ['sync_insights'],
+    note: 'follower_count דורש 100+ עוקבים וזמין ל-30 יום אחורה. מדד שלא זמין לחשבון מסומן ולא מוצג כנתון.', source: `${DOCS}/insights`,
+  },
+  {
+    key: 'media', requirement: '4-analytics', title: 'ביצועי פוסטים, רילס וסטוריז שלך', support: 'automatic', providers: ['instagram_login', 'facebook_login'],
     permissions: { instagram_login: ['instagram_business_basic', 'instagram_business_manage_insights'], facebook_login: ['instagram_basic', 'instagram_manage_insights'] },
-    note: 'reach / views / saved / shares / total_interactions לכל פוסט מ-30 הימים האחרונים.',
+    jobTypes: ['sync_media', 'sync_stories'], note: 'סטוריז נשמרים כל 4 שעות (זמינים ב-API רק 24 שעות).', source: `${DOCS}/insights`,
   },
   {
-    key: 'stories_insights',
-    title: 'נתוני הסטוריז שלך',
-    support: 'official',
-    permissions: { instagram_login: ['instagram_business_manage_insights'], facebook_login: ['instagram_manage_insights'] },
-    note: 'סטוריז זמינים 24 שעות בלבד — המערכת שומרת אותם ואת נתוניהם כל 4 שעות.',
+    key: 'competitors', requirement: '4-analytics', title: 'השוואת ביצועים למתחרים', support: 'automatic', providers: ['facebook_login'],
+    permissions: { facebook_login: ['instagram_basic', 'instagram_manage_insights', 'pages_read_engagement'] }, jobTypes: ['sync_competitors', 'enrich_targets'],
+    note: 'Business Discovery — חשבונות עסקיים/יוצרים בלבד.', source: `${DOCS}/instagram-graph-api/reference/ig-user/business_discovery`,
   },
   {
-    key: 'business_discovery',
-    title: 'מחקר קהל יעד ומתחרים (Business Discovery)',
-    support: 'official_fb_only',
-    permissions: { facebook_login: ['instagram_basic', 'pages_read_engagement'] },
-    note: 'מספר עוקבים ופוסטים של חשבונות עסקיים/יוצרים אחרים. זמין רק בחיבור דרך Facebook Login.',
+    key: 'safety', requirement: '5-safety', title: 'זיהוי שגיאות, מגבלות והרשאות + עצירה אוטומטית', support: 'automatic', providers: ['instagram_login', 'facebook_login'], permissions: {}, jobTypes: [],
+    note: 'סיווג כל שגיאת Meta (טוקן, הרשאה, Rate limit, חסימת מדיניות), קריאת כותרות ניצול מכסה, השהיה לפני הגבול, מפסק זרם, ביטול משימות בחשבון לא תקין.',
+    source: `${DOCS}/reference/error-codes`,
   },
   {
-    key: 'publishing',
-    title: 'פרסום מתוזמן: פוסטים, רילס וסטוריז',
-    support: 'official',
-    permissions: { instagram_login: ['instagram_business_content_publish'], facebook_login: ['instagram_content_publish'] },
-    note: 'אוטומטי לגמרי בשעה שנקבעה. עד 100 פרסומים ב-24 שעות (מגבלת Meta). הקובץ חייב להיות נגיש ב-HTTPS ציבורי.',
+    key: 'publishing', requirement: 'extra', title: 'פרסום מתוזמן (תוספת — לא בדרישה המקורית)', support: 'automatic', providers: ['instagram_login', 'facebook_login'],
+    permissions: { instagram_login: ['instagram_business_content_publish'], facebook_login: ['instagram_content_publish'] }, jobTypes: ['publish_post'],
+    note: 'דורש כתובת שרת ציבורית ב-HTTPS.', source: `${DOCS}/content-publishing`,
   },
   {
-    key: 'comment_replies',
-    title: 'מענה אוטומטי לתגובות (ציבורי ובפרטי)',
-    support: 'official',
+    key: 'auto_replies', requirement: 'extra', title: 'מענה אוטומטי לתגובות והודעות (תוספת — לא בדרישה המקורית)', support: 'automatic', providers: ['instagram_login', 'facebook_login'],
     permissions: { instagram_login: ['instagram_business_manage_comments', 'instagram_business_manage_messages'], facebook_login: ['instagram_manage_comments', 'instagram_manage_messages'] },
-    note: 'לפי מילות מפתח או לכל תגובה. בזמן אמת דרך Webhooks, או בבדיקה כל 15 דקות. מגבלה שעתית נגד ספאם.',
-  },
-  {
-    key: 'dm_replies',
-    title: 'מענה אוטומטי להודעות בדיירקט',
-    support: 'official',
-    permissions: { instagram_login: ['instagram_business_manage_messages'], facebook_login: ['instagram_manage_messages', 'pages_manage_metadata'] },
-    note: 'הודעת פתיחה ותשובות לפי מילות מפתח. דורש Webhooks (כתובת ציבורית). Meta מתירה מענה עד 24 שעות מההודעה של הלקוח.',
-  },
-  {
-    key: 'follow',
-    title: 'Follow — מעקב אחרי חשבונות',
-    support: 'manual',
-    permissions: {},
-    note: 'אין API רשמי לביצוע Follow. המערכת מתכננת רשימה יומית בטוחה, פותחת את הפרופיל באינסטגרם, ומתעדת רק מה שאושר שבוצע.',
-  },
-  {
-    key: 'unfollow',
-    title: 'Unfollow — הסרת מעקב לפי כללים',
-    support: 'manual',
-    permissions: {},
-    note: 'אין API רשמי לביצוע Unfollow או לרשימת עוקבים. זיהוי "לא עוקב בחזרה" מתבסס על קובץ ההורדה הרשמי של אינסטגרם.',
-  },
-  {
-    key: 'story_like',
-    title: 'לייקים לסטוריז של אחרים',
-    support: 'manual',
-    permissions: {},
-    note: 'אין API רשמי ללייק על סטורי. המערכת מנהלת תור ביצוע ידני עם קצב בטוח ותיעוד.',
+    jobTypes: ['process_comment', 'poll_comments', 'process_dm'], note: 'הודעות דיירקט דורשות Webhooks.', source: `${DOCS}/webhooks`,
   },
 ];

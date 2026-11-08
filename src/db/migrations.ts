@@ -375,4 +375,36 @@ ALTER TABLE ig_accounts ADD COLUMN webhook_subscribed_at INTEGER;
 ALTER TABLE ig_accounts ADD COLUMN last_webhook_at INTEGER;
 `,
   },
+  {
+    id: 4,
+    name: 'official_like_engine',
+    sql: `
+ALTER TABLE ig_accounts ADD COLUMN user_token_enc TEXT;
+ALTER TABLE ig_accounts ADD COLUMN user_token_expires_at INTEGER;
+ALTER TABLE account_settings ADD COLUMN daily_like_limit INTEGER NOT NULL DEFAULT 40;
+ALTER TABLE account_settings ADD COLUMN likes_per_hour INTEGER NOT NULL DEFAULT 10;
+ALTER TABLE account_settings ADD COLUMN like_media_max_age_days INTEGER NOT NULL DEFAULT 7;
+ALTER TABLE targets ADD COLUMN auto_like INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE targets ADD COLUMN last_auto_like_check_at INTEGER;
+
+CREATE TABLE engagement_actions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  org_id TEXT NOT NULL,
+  account_id TEXT NOT NULL REFERENCES ig_accounts(id) ON DELETE CASCADE,
+  target_username TEXT NOT NULL,
+  media_id TEXT NOT NULL,
+  media_type TEXT,
+  permalink TEXT,
+  action TEXT NOT NULL CHECK (action IN ('like')),
+  status TEXT NOT NULL CHECK (status IN ('queued','done','failed','cancelled')),
+  error TEXT,
+  run_at INTEGER NOT NULL,
+  executed_at INTEGER,
+  created_at INTEGER NOT NULL,
+  UNIQUE (account_id, media_id, action)
+);
+CREATE INDEX engagement_actions_account ON engagement_actions(account_id, created_at);
+CREATE INDEX engagement_actions_done ON engagement_actions(account_id, status, executed_at);
+`,
+  },
 ];

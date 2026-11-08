@@ -31,6 +31,7 @@ export function growthRoutes(app: FastifyInstance, ctx: Ctx) {
       followWanted: !!b.followWanted,
       engageStories: !!b.engageStories,
       whitelisted: !!b.whitelisted,
+      autoLike: !!b.autoLike,
       source: b.source === 'csv' ? 'csv' : 'manual',
     });
   });

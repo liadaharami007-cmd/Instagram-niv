@@ -14,7 +14,7 @@ export function normalizeUsername(input: string): string | null {
   return USERNAME_RE.test(s) && !s.startsWith('.') && !s.endsWith('.') && !s.includes('..') ? s : null;
 }
 
-export type TargetFilter = 'all' | 'to_follow' | 'following' | 'non_followers' | 'followers' | 'mutual' | 'whitelist' | 'stories';
+export type TargetFilter = 'all' | 'to_follow' | 'following' | 'non_followers' | 'followers' | 'mutual' | 'whitelist' | 'stories' | 'auto_like';
 
 const FILTERS: Record<TargetFilter, string> = {
   all: '1=1',
@@ -25,9 +25,10 @@ const FILTERS: Record<TargetFilter, string> = {
   mutual: 'i_follow = 1 AND follows_me = 1',
   whitelist: 'whitelisted = 1',
   stories: 'engage_stories = 1',
+  auto_like: 'auto_like = 1',
 };
 
-const EDITABLE = new Set(['segment', 'notes', 'whitelisted', 'follow_wanted', 'engage_stories']);
+const EDITABLE = new Set(['segment', 'notes', 'whitelisted', 'follow_wanted', 'engage_stories', 'auto_like']);
 
 export class TargetsService {
   private readonly ctx: Ctx;
@@ -39,7 +40,7 @@ export class TargetsService {
    * Adds handles (one per line, optional ",segment,notes"). Existing targets keep their state
    * but receive the requested flags.
    */
-  add(account: AccountRow, userId: string, text: string, opts: { segment?: string; followWanted?: boolean; engageStories?: boolean; whitelisted?: boolean; source?: string }) {
+  add(account: AccountRow, userId: string, text: string, opts: { segment?: string; followWanted?: boolean; engageStories?: boolean; whitelisted?: boolean; autoLike?: boolean; source?: string }) {
     const lines = text.split(/[\r\n]+/).map((l) => l.trim()).filter(Boolean);
     if (lines.length > 5000) throw badRequest('ניתן להוסיף עד 5,000 חשבונות בפעם אחת');
     const now = this.ctx.now();
@@ -57,16 +58,17 @@ export class TargetsService {
         const segment = (rawSegment?.trim() || opts.segment || 'general').slice(0, 40);
         const notes = rest.join(',').trim().slice(0, 300) || null;
         const r = this.ctx.db.run(
-          `INSERT INTO targets (id, org_id, account_id, username, segment, source, notes, follow_wanted, engage_stories, whitelisted, created_at, updated_at)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+          `INSERT INTO targets (id, org_id, account_id, username, segment, source, notes, follow_wanted, engage_stories, whitelisted, auto_like, created_at, updated_at)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
            ON CONFLICT(account_id, username) DO UPDATE SET
              follow_wanted = MAX(targets.follow_wanted, excluded.follow_wanted),
              engage_stories = MAX(targets.engage_stories, excluded.engage_stories),
              whitelisted = MAX(targets.whitelisted, excluded.whitelisted),
+             auto_like = MAX(targets.auto_like, excluded.auto_like),
              segment = CASE WHEN excluded.segment != 'general' THEN excluded.segment ELSE targets.segment END,
              notes = COALESCE(excluded.notes, targets.notes), updated_at = excluded.updated_at`,
           newId('tgt'), account.org_id, account.id, username, segment, opts.source ?? 'manual', notes,
-          opts.followWanted ? 1 : 0, opts.engageStories ? 1 : 0, opts.whitelisted ? 1 : 0, now, now,
+          opts.followWanted ? 1 : 0, opts.engageStories ? 1 : 0, opts.whitelisted ? 1 : 0, opts.autoLike ? 1 : 0, now, now,
         );
         if (r.changes) {
           const fresh = this.ctx.db.get<{ created_at: number }>('SELECT created_at FROM targets WHERE account_id = ? AND username = ?', account.id, username);

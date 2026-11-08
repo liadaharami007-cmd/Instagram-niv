@@ -71,6 +71,52 @@ export function accountRoutes(app: FastifyInstance, ctx: Ctx) {
     return { id: ctx.demo.create(req.auth.orgId, req.auth.userId).id };
   });
 
+  // ── What actually works for this account (from real job outcomes, never assumed) ──
+  app.get('/api/accounts/:id/capabilities', async (req: any) => {
+    const a = acc(req);
+    const last = (types: string[], status: string) =>
+      types.length
+        ? ctx.db.get<{ t: number; e: string | null; type: string }>(
+            `SELECT COALESCE(finished_at, updated_at) AS t, last_error AS e, type FROM jobs WHERE account_id = ? AND status = ? AND type IN (${types.map(() => '?').join(',')}) ORDER BY id DESC LIMIT 1`,
+            a.id, status, ...types,
+          )
+        : undefined;
+    const likes = ctx.db.get<{ ok: number | null; bad: number | null; err: string | null }>(
+      `SELECT MAX(CASE WHEN status = 'done' THEN executed_at END) AS ok, MAX(CASE WHEN status = 'failed' THEN executed_at END) AS bad,
+              (SELECT error FROM engagement_actions WHERE account_id = ? AND status = 'failed' ORDER BY id DESC LIMIT 1) AS err
+         FROM engagement_actions WHERE account_id = ?`, a.id, a.id,
+    );
+    return CAPABILITIES.map((c) => {
+      let state: string;
+      let lastSuccessAt: number | null = null;
+      let lastFailure: { at: number; error: string | null } | null = null;
+      if (c.support === 'not_supported') state = 'not_supported';
+      else if (!c.providers.includes(a.provider)) state = 'needs_other_login';
+      else if (a.is_demo) state = 'demo';
+      else if (c.key === 'safety') state = 'active';
+      else {
+        const ok = c.key === 'likes' ? (likes?.ok ? { t: likes.ok } : undefined) : last(c.jobTypes, 'succeeded');
+        const bad = c.key === 'likes' ? (likes?.bad ? { t: likes.bad, e: likes.err } : undefined) : last(c.jobTypes, 'failed');
+        lastSuccessAt = ok?.t ?? null;
+        lastFailure = bad ? { at: bad.t, error: bad.e ?? null } : null;
+        state = ok && (!bad || ok.t >= bad.t) ? 'verified' : bad ? 'failing' : 'not_run_yet';
+      }
+      return { ...c, state, lastSuccessAt, lastFailure };
+    });
+  });
+
+  // ── Official Likes engine (start / stop / monitor) ──
+  app.get('/api/accounts/:id/engine/likes', async (req: any) => ctx.engagement.status(acc(req)));
+  app.post('/api/accounts/:id/engine/likes/start', async (req: any) => {
+    admin(req);
+    ctx.engagement.start(acc(req), req.auth.userId);
+    return { ok: true };
+  });
+  app.post('/api/accounts/:id/engine/likes/stop', async (req: any) => {
+    ctx.engagement.stop(acc(req), 'נעצר ידנית', req.auth.userId);
+    return { ok: true };
+  });
+
   // ── Accounts ──
   app.get('/api/accounts', async (req: any) =>
     ctx.accounts.list(req.auth.orgId).map((a) => ({ ...ctx.accounts.toPublic(a), summary: ctx.analytics.summary(a), tasks: ctx.tasks.summary(a) })),

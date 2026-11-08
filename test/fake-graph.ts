@@ -33,6 +33,8 @@ export function createFakeGraph() {
     replies: [] as { commentId: string; message: string }[],
     messages: [] as { recipient: any; message: any }[],
     subscriptions: [] as string[],
+    likes: [] as { mediaId: string; token: string }[],
+    mediaAgeDays: 1,
     calls: [] as string[],
   };
   const injected: Injected[] = [];
@@ -91,6 +93,12 @@ export function createFakeGraph() {
       state.subscriptions.push(params.get('subscribed_fields') ?? '');
       return json(200, { success: true });
     }
+    if (path === `/${ig}/likes` && method === 'POST') {
+      // Per Meta docs the Likes API needs a *User* access token (Facebook Login).
+      if (!token.startsWith('fb-user-token')) return err(200, '(#200) Requires a User access token with instagram_manage_engagement', 403);
+      state.likes.push({ mediaId: params.get('media_id') ?? '', token });
+      return json(200, { success: true });
+    }
     if (path === `/${ig}/messages`) {
       state.messages.push({ recipient: JSON.parse(params.get('recipient') ?? '{}'), message: JSON.parse(params.get('message') ?? '{}') });
       return json(200, { recipient_id: '1', message_id: `mid.${state.messages.length}` });
@@ -136,7 +144,10 @@ export function createFakeGraph() {
       if (bd) {
         const a = state.businessAccounts.get(bd[1]);
         if (!a) return err(110, 'Invalid user id', 400, 2207013);
-        return json(200, { business_discovery: { username: bd[1], ...a, id: '1' }, id: state.igUserId });
+        const media = fields.includes('media')
+          ? { media: { data: [0, 1].map((i) => ({ id: `1795${a.followers_count}${i}`, timestamp: new Date(Date.now() - (state.mediaAgeDays + i * 20) * 86400000).toISOString().replace('.000Z', '+0000'), media_product_type: i ? 'REELS' : 'FEED', permalink: `https://www.instagram.com/p/${bd[1]}${i}/` })) } }
+          : {};
+        return json(200, { business_discovery: { username: bd[1], ...a, ...media, id: '1' }, id: state.igUserId });
       }
       return json(200, profile(), usage);
     }

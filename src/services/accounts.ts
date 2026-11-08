@@ -33,6 +33,8 @@ export interface AccountRow {
   media_count: number | null;
   last_synced_at: number | null;
   is_demo: number;
+  user_token_enc: string | null;
+  user_token_expires_at: number | null;
   comments_polled_at: number | null;
   webhook_subscribed_at: number | null;
   last_webhook_at: number | null;
@@ -55,16 +57,21 @@ export interface AccountSettings {
   active_hour_end: number;
   block_cooldown_hours: number;
   auto_reply_hourly_limit: number;
+  daily_like_limit: number;
+  likes_per_hour: number;
+  like_media_max_age_days: number;
 }
 
 /** Background automations per account. All are official Graph API reads or local planning. */
-export const SCHEDULE_DEFAULTS: { type: string; intervalSec: number; providers?: Provider[] }[] = [
+export const SCHEDULE_DEFAULTS: { type: string; intervalSec: number; providers?: Provider[]; enabledByDefault?: boolean }[] = [
   { type: 'sync_profile', intervalSec: 3 * 3600 },
   { type: 'sync_insights', intervalSec: 12 * 3600 },
   { type: 'sync_media', intervalSec: 12 * 3600 },
   { type: 'sync_stories', intervalSec: 4 * 3600 },
   { type: 'plan_manual_tasks', intervalSec: 3600 },
   { type: 'poll_comments', intervalSec: 15 * 60 },
+  // Official Likes API (Facebook Login only). Off by default: the owner must start it explicitly.
+  { type: 'auto_like_plan', intervalSec: 3600, providers: ['facebook_login'], enabledByDefault: false },
   { type: 'refresh_token', intervalSec: 24 * 3600, providers: ['instagram_login'] },
   { type: 'enrich_targets', intervalSec: 6 * 3600, providers: ['facebook_login'] },
   { type: 'sync_competitors', intervalSec: 24 * 3600, providers: ['facebook_login'] },
@@ -72,7 +79,7 @@ export const SCHEDULE_DEFAULTS: { type: string; intervalSec: number; providers?:
 
 export const API_JOB_TYPES = new Set([
   'sync_profile', 'sync_insights', 'sync_media', 'sync_stories', 'refresh_token', 'enrich_targets', 'sync_competitors',
-  'publish_post', 'poll_comments', 'process_comment', 'process_dm', 'subscribe_webhooks',
+  'publish_post', 'poll_comments', 'process_comment', 'process_dm', 'subscribe_webhooks', 'auto_like_plan', 'like_media',
 ]);
 
 const SETTINGS_RULES: Record<string, [number, number]> = {
@@ -88,6 +95,9 @@ const SETTINGS_RULES: Record<string, [number, number]> = {
   active_hour_end: [1, 24],
   block_cooldown_hours: [12, 168],
   auto_reply_hourly_limit: [1, 200],
+  daily_like_limit: [0, HARD_LIMITS.daily_like_limit],
+  likes_per_hour: [1, HARD_LIMITS.likes_per_hour],
+  like_media_max_age_days: [1, 30],
 };
 
 export class AccountsService {
@@ -121,7 +131,7 @@ export class AccountsService {
 
   /** Public representation — never includes the token. */
   toPublic(a: AccountRow) {
-    const { access_token_enc: _t, granted_scopes, unsupported_metrics, ...rest } = a;
+    const { access_token_enc: _t, user_token_enc: _u, granted_scopes, unsupported_metrics, ...rest } = a;
     return { ...rest, granted_scopes: JSON.parse(granted_scopes) as string[], unsupported_metrics: JSON.parse(unsupported_metrics) as string[] };
   }
 
@@ -132,24 +142,26 @@ export class AccountsService {
     for (const p of profiles) {
       const existing = this.ctx.db.get<AccountRow>('SELECT * FROM ig_accounts WHERE org_id = ? AND ig_user_id = ?', orgId, p.igUserId);
       const tokenEnc = encrypt(p.token, this.ctx.config.encryptionKey);
+      const userTokenEnc = p.userToken ? encrypt(p.userToken, this.ctx.config.encryptionKey) : null;
       const id = existing?.id ?? newId('acc');
       this.ctx.db.tx(() => {
         if (existing) {
           this.ctx.db.run(
             `UPDATE ig_accounts SET provider=?, username=?, name=?, account_type=?, profile_picture_url=?, fb_page_id=?, access_token_enc=?,
                token_expires_at=?, token_refreshed_at=?, granted_scopes=?, status='active', paused_until=NULL, pause_reason=NULL,
-               consecutive_failures=0, unsupported_metrics='[]', last_error=NULL, app_scoped_user_id=?, updated_at=? WHERE id=?`,
+               consecutive_failures=0, unsupported_metrics='[]', last_error=NULL, app_scoped_user_id=?, user_token_enc=?, user_token_expires_at=?, updated_at=? WHERE id=?`,
             provider, p.username, p.name ?? null, p.accountType ?? null, p.profilePictureUrl ?? null, p.fbPageId ?? null, tokenEnc,
-            p.tokenExpiresAt, now, JSON.stringify(p.scopes), p.appScopedUserId ?? null, now, id,
+            p.tokenExpiresAt, now, JSON.stringify(p.scopes), p.appScopedUserId ?? null, userTokenEnc, p.userTokenExpiresAt ?? null, now, id,
           );
         } else {
           this.ctx.db.run(
             `INSERT INTO ig_accounts (id, org_id, provider, ig_user_id, app_scoped_user_id, username, name, account_type, profile_picture_url, fb_page_id,
-               access_token_enc, token_expires_at, token_refreshed_at, granted_scopes, followers_count, follows_count, media_count, created_at, updated_at)
-             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+               access_token_enc, token_expires_at, token_refreshed_at, granted_scopes, followers_count, follows_count, media_count, created_at, updated_at,
+               user_token_enc, user_token_expires_at)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
             id, orgId, provider, p.igUserId, p.appScopedUserId ?? null, p.username, p.name ?? null, p.accountType ?? null, p.profilePictureUrl ?? null,
             p.fbPageId ?? null, tokenEnc, p.tokenExpiresAt, now, JSON.stringify(p.scopes), p.followersCount ?? null, p.followsCount ?? null,
-            p.mediaCount ?? null, now, now,
+            p.mediaCount ?? null, now, now, userTokenEnc, p.userTokenExpiresAt ?? null,
           );
           this.ctx.db.run('INSERT INTO account_settings (account_id) VALUES (?)', id);
         }
@@ -176,9 +188,9 @@ export class AccountsService {
     for (const s of SCHEDULE_DEFAULTS) {
       if (s.providers && !s.providers.includes(provider)) continue;
       this.ctx.db.run(
-        `INSERT INTO schedules (account_id, org_id, job_type, interval_sec, enabled, next_run_at) VALUES (?,?,?,?,1,?)
+        `INSERT INTO schedules (account_id, org_id, job_type, interval_sec, enabled, next_run_at) VALUES (?,?,?,?,?,?)
          ON CONFLICT(account_id, job_type) DO NOTHING`,
-        accountId, orgId, s.type, s.intervalSec, now + s.intervalSec * 1000,
+        accountId, orgId, s.type, s.intervalSec, s.enabledByDefault === false ? 0 : 1, now + s.intervalSec * 1000,
       );
     }
     // Remove schedules that do not apply to this provider (e.g. after switching login type).
@@ -276,6 +288,7 @@ export class AccountsService {
     }
     if (patch.enabled !== undefined) {
       this.ctx.db.run('UPDATE schedules SET enabled = ? WHERE account_id = ? AND job_type = ?', patch.enabled ? 1 : 0, account.id, jobType);
+      if (!patch.enabled && jobType === 'auto_like_plan') this.ctx.engagement.cancelQueued(account, 'המנוע נעצר');
       if (!patch.enabled) this.ctx.db.run(`UPDATE jobs SET status='cancelled', finished_at=?, last_error='automation disabled' WHERE account_id=? AND type=? AND status='queued'`, this.ctx.now(), account.id, jobType);
     }
     this.ctx.audit.record(account.org_id, 'automation.updated', { userId, accountId: account.id, details: { jobType, ...patch } });

@@ -55,7 +55,7 @@ test('full product flow over HTTP with tenant isolation', async () => {
 
   const status = (await call('GET', '/api/meta/status', undefined, a)).json();
   assert.equal(status.providers.instagram_login.configured, true);
-  assert.ok(status.capabilities.find((c: any) => c.key === 'follow' && c.support === 'manual'));
+  assert.ok(status.capabilities.find((c: any) => c.key === 'follow' && c.support === 'not_supported'));
 
   const conn = await call('POST', '/api/accounts/connect-token', { provider: 'instagram_login', token: 'test-token-xxxxxxxxxxxxxxxxxxxx' }, a);
   assert.equal(conn.status, 200, conn.body);

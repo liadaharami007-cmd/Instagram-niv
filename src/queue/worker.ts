@@ -24,11 +24,14 @@ export const handlers: Record<string, Handler> = {
   process_comment: (j, a, ctx) => ctx.autoReplies.handleComment(a!, j.payload.comment),
   process_dm: (j, a, ctx) => ctx.autoReplies.handleMessage(a!, j.payload.message),
   subscribe_webhooks: (_j, a, ctx) => ctx.autoReplies.subscribe(a!),
+  auto_like_plan: (_j, a, ctx) => ctx.engagement.plan(a!),
+  like_media: (j, a, ctx) => ctx.engagement.like(a!, Number(j.payload.actionId)),
 };
 
 /** Runs when a job fails for good, so domain records never stay stuck "in progress". */
 const onFinalFailure: Record<string, (job: Job, ctx: Ctx, error: string) => void> = {
   publish_post: (job, ctx, error) => ctx.publishing.markFailed(String(job.payload.postId), error),
+  like_media: (job, ctx, error) => ctx.engagement.finish(Number(job.payload.actionId), 'failed', error),
 };
 
 export const JOB_LABELS: Record<string, string> = {
@@ -45,6 +48,8 @@ export const JOB_LABELS: Record<string, string> = {
   process_comment: 'מענה אוטומטי לתגובה',
   process_dm: 'מענה אוטומטי להודעה',
   subscribe_webhooks: 'הרשמה לעדכונים בזמן אמת (Webhooks)',
+  auto_like_plan: 'מנוע לייקים: איתור פוסטים חדשים של קהל היעד',
+  like_media: 'לייק לפוסט (API רשמי)',
 };
 
 export class Worker {

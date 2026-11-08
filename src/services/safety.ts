@@ -12,6 +12,8 @@ export const HARD_LIMITS = {
   daily_story_like_limit: 200,
   hourly_action_limit: 40,
   min_action_gap_sec: 10,
+  daily_like_limit: 200,
+  likes_per_hour: 30,
 } as const;
 
 const USAGE_THROTTLE_PCT = 90;
