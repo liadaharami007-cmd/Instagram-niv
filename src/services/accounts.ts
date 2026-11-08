@@ -70,8 +70,8 @@ export const SCHEDULE_DEFAULTS: { type: string; intervalSec: number; providers?:
   { type: 'sync_stories', intervalSec: 4 * 3600 },
   { type: 'plan_manual_tasks', intervalSec: 3600 },
   { type: 'poll_comments', intervalSec: 15 * 60 },
-  // Official Likes API (Facebook Login only). Off by default: the owner must start it explicitly.
-  { type: 'auto_like_plan', intervalSec: 3600, providers: ['facebook_login'], enabledByDefault: false },
+  // Official Likes API (Facebook Login only). On by default; does nothing until target accounts are added.
+  { type: 'auto_like_plan', intervalSec: 3600, providers: ['facebook_login'] },
   { type: 'refresh_token', intervalSec: 24 * 3600, providers: ['instagram_login'] },
   { type: 'enrich_targets', intervalSec: 6 * 3600, providers: ['facebook_login'] },
   { type: 'sync_competitors', intervalSec: 24 * 3600, providers: ['facebook_login'] },
@@ -172,6 +172,7 @@ export class AccountsService {
       this.ctx.queue.enqueue({ type: 'sync_insights', orgId, accountId: id, priority: 20, payload: { days: 30 }, dedupeKey: `sync_insights:${id}` });
       this.ctx.queue.enqueue({ type: 'sync_media', orgId, accountId: id, priority: 30, dedupeKey: `sync_media:${id}` });
       this.ctx.queue.enqueue({ type: 'sync_stories', orgId, accountId: id, priority: 30, dedupeKey: `sync_stories:${id}` });
+      if (!existing) this.ctx.autopilot.applyDefaults(this.findById(id)!);
       this.ctx.audit.record(orgId, existing ? 'account.reconnected' : 'account.connected', { userId, accountId: id, details: { provider, username: p.username } });
       saved.push(this.findById(id)!);
     }

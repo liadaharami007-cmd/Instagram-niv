@@ -407,4 +407,12 @@ CREATE INDEX engagement_actions_account ON engagement_actions(account_id, create
 CREATE INDEX engagement_actions_done ON engagement_actions(account_id, status, executed_at);
 `,
   },
+  {
+    id: 5,
+    name: 'autopilot',
+    sql: `
+ALTER TABLE reply_rules ADD COLUMN system_key TEXT;
+CREATE UNIQUE INDEX reply_rules_system_key ON reply_rules(account_id, system_key) WHERE system_key IS NOT NULL;
+`,
+  },
 ];

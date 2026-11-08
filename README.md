@@ -29,6 +29,17 @@ META_TEST_FB_TOKEN=... META_TEST_LIKE_MEDIA_ID=... npm run verify:meta   # Faceb
 ```
 Behind an HTTP proxy, run with `NODE_USE_ENV_PROXY=1`.
 
+## Autopilot: the account's main screen
+
+Once an account is connected, everything runs automatically. Nothing has to be switched on, and every feature is a single switch:
+- **Someone wrote "price"?** They get a public reply plus a private message right away. The wording is editable in one step.
+- **Welcome message in DMs.** Works once Webhooks are configured.
+- **Automatic likes for the target audience** (Facebook Login): paste usernames and it starts right away.
+- **Growth data and account protection:** always on.
+- **Follow / Unfollow / story likes:** shown on a clear "not supported by Meta" card.
+
+All other screens are under "עוד" (more).
+
 ## Demo mode and work session
 
 - **🎬 Demo account in one click:** "Open demo account" on the home screen or the connect page. It has 90 days of sample data, posts, competitors, an audience list and tasks. It's labeled "Demo" on every screen, never calls Meta, and is deleted from Settings like any other account.

@@ -3,9 +3,14 @@ import { h, mount, fmt, delta, signed, dt, ago, countdown, toast, statusBadge, l
 import { state, refreshAccounts, onLeave, activityList } from './app.js';
 import { publishTab, repliesTab } from './engage.js';
 import { capabilitiesTab, likesTab } from './engine.js';
+import { autopilotTab } from './autopilot.js';
 
+const MAIN_TABS = [
+  ['autopilot', '🚀 אוטומטי'],
+  ['growth', '📈 נתונים'],
+];
 const TABS = [
-  ['growth', 'צמיחה ונתונים'],
+  ...MAIN_TABS,
   ['capabilities', '✅ מה עובד'],
   ['likes', '❤️ לייקים אוטומטיים'],
   ['follow', 'Follow (ידני)'],
@@ -41,12 +46,23 @@ export async function accountPage(main, id, tab, query) {
     account.status === 'needs_reauth' ? h('div', { class: 'alert bad' }, 'ההרשאה לחשבון פגה או בוטלה ב-Meta. כל המשימות האוטומטיות נעצרו. יש לחבר מחדש את החשבון.') : null,
     paused ? h('div', { class: 'alert warn' }, `החשבון מושהה: ${account.pause_reason || ''}${account.paused_until ? ` · חידוש אוטומטי ב-${dt(account.paused_until)}` : ''}`) : null,
     account.manual_cooldown_until && account.manual_cooldown_until > Date.now() ? h('div', { class: 'alert bad' }, `הקפאת בטיחות לפעולות ידניות עד ${dt(account.manual_cooldown_until)} (דווחה חסימה מאינסטגרם).`) : null,
-    h('nav', { class: 'tabs' }, TABS.map(([k, label]) => h('a', { class: ['tab', k === tab && 'active'], href: `#/a/${id}/${k}` }, label))),
+    tabsNav(id, tab),
     body,
   );
   const ctx = { id, account, settings, isAdmin, query };
-  const pages = { capabilities: capabilitiesTab, likes: likesTab, session: sessionTab, publish: publishTab, replies: repliesTab, growth: growthTab, follow: (b, c) => manualTab(b, c, 'follow'), unfollow: unfollowTab, stories: storiesTab, automation: automationTab, safety: safetyTab, activity: activityTab, settings: settingsTab };
-  await (pages[tab] || growthTab)(body, ctx);
+  const pages = { autopilot: autopilotTab, capabilities: capabilitiesTab, likes: likesTab, session: sessionTab, publish: publishTab, replies: repliesTab, growth: growthTab, follow: (b, c) => manualTab(b, c, 'follow'), unfollow: unfollowTab, stories: storiesTab, automation: automationTab, safety: safetyTab, activity: activityTab, settings: settingsTab };
+  await (pages[tab] || autopilotTab)(body, ctx);
+}
+
+/** Two main tabs; everything else lives under "עוד" so the screen stays simple. */
+function tabsNav(id, tab) {
+  const inMain = MAIN_TABS.some(([k]) => k === tab);
+  const more = h('div', { class: ['tabs', 'more-tabs', inMain && 'hidden'] }, TABS.filter(([k]) => !MAIN_TABS.some(([m]) => m === k)).map(([k, label]) => h('a', { class: ['tab', k === tab && 'active'], href: `#/a/${id}/${k}` }, label)));
+  return h('div', {},
+    h('nav', { class: 'tabs' },
+      MAIN_TABS.map(([k, label]) => h('a', { class: ['tab', k === tab && 'active'], href: `#/a/${id}/${k}` }, label)),
+      h('a', { class: ['tab', !inMain && 'active'], href: '#', onclick: (e) => { e.preventDefault(); more.classList.toggle('hidden'); } }, '⋯ עוד')),
+    more);
 }
 
 export const rerender = () => window.dispatchEvent(new HashChangeEvent('hashchange'));

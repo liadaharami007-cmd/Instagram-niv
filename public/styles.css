@@ -219,3 +219,20 @@ code { background: var(--surface-2); padding: .1rem .35rem; border-radius: 6px; 
 .template .btn { align-self: flex-start; }
 input.narrow { width: 90px; }
 .bad { color: var(--bad); }
+
+/* Autopilot */
+.hero { display: flex; gap: 1rem; align-items: center; }
+.feature.on { border-color: var(--good); }
+.feature.unsupported { background: var(--surface-2); }
+.feature > * + * { margin-top: .5rem; }
+.msg-preview { background: var(--surface-2); border-radius: 10px; padding: .5rem .7rem; }
+.big-badge { font-size: .9rem; padding: .3rem .8rem; }
+.more-tabs { margin-top: -.75rem; }
+.switch { position: relative; display: inline-block; width: 56px; height: 32px; flex: none; margin: 0; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.slider { position: absolute; inset: 0; cursor: pointer; background: var(--border); border-radius: 999px; transition: background .2s; }
+.slider::before { content: ""; position: absolute; width: 26px; height: 26px; inset-inline-start: 3px; top: 3px; background: #fff; border-radius: 50%; transition: transform .2s; box-shadow: 0 1px 3px rgba(0,0,0,.25); }
+.switch input:checked + .slider { background: var(--good); }
+.switch input:checked + .slider::before { transform: translateX(-24px); }
+.switch input:disabled + .slider { opacity: .5; cursor: not-allowed; }
+.switch input:focus-visible + .slider { outline: 2px solid var(--primary); outline-offset: 2px; }

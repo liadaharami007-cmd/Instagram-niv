@@ -105,6 +105,14 @@ export function accountRoutes(app: FastifyInstance, ctx: Ctx) {
     });
   });
 
+  // ── Autopilot: one screen, one switch per feature ──
+  app.get('/api/accounts/:id/autopilot', async (req: any) => ctx.autopilot.status(acc(req)));
+  app.patch('/api/accounts/:id/autopilot/:feature', async (req: any) => {
+    admin(req);
+    ctx.autopilot.set(acc(req), req.params.feature, req.body ?? {}, req.auth.userId);
+    return ctx.autopilot.status(acc(req));
+  });
+
   // ── Official Likes engine (start / stop / monitor) ──
   app.get('/api/accounts/:id/engine/likes', async (req: any) => ctx.engagement.status(acc(req)));
   app.post('/api/accounts/:id/engine/likes/start', async (req: any) => {

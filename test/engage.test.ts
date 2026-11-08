@@ -200,3 +200,28 @@ test('demo account: scheduled post is never sent to Meta and says so', async () 
   assert.match(row.error!, /הדגמה/);
   assert.equal(fake.state.calls.length, 0);
 });
+
+test('autopilot: a new account answers "מחיר" with a private message without anyone switching anything on', async () => {
+  const t = testCtx();
+  const { orgId, userId } = seedOrg(t.ctx);
+  const acc = await connectAccount(t.ctx, orgId, userId);
+  const st = t.ctx.autopilot.status(acc);
+  const by = Object.fromEntries(st.features.map((f: any) => [f.key, f]));
+  assert.equal(by.price_reply.on, true);
+  assert.equal(by.dm_welcome.on, true);
+  assert.ok(!by.price_reply.text.includes('['), 'default message is ready to send (no placeholders)');
+  assert.deepEqual(st.notSupported.map((x: any) => x.key), ['follow', 'unfollow', 'story_like']);
+
+  const res = await t.ctx.autoReplies.handleComment(acc, { id: '8001', text: 'כמה עולה?', username: 'client.one', fromId: '77' });
+  assert.equal((res as any).private, true);
+  assert.equal(t.fake.state.messages[0].message.text, by.price_reply.text);
+
+  // One switch + one text box
+  t.ctx.autopilot.set(acc, 'price_reply', { text: 'המחיר 199₪, משלוח חינם 🚚' }, userId);
+  await t.ctx.autoReplies.handleComment(acc, { id: '8002', text: 'מחיר?', username: 'client.two', fromId: '78' });
+  assert.equal(t.fake.state.messages[1].message.text, 'המחיר 199₪, משלוח חינם 🚚');
+  t.ctx.autopilot.set(acc, 'price_reply', { on: false }, userId);
+  const r3 = await t.ctx.autoReplies.handleComment(acc, { id: '8003', text: 'מחיר?', username: 'client.three', fromId: '79' });
+  assert.equal((r3 as any).skipped, 'no matching rule');
+  assert.throws(() => t.ctx.autopilot.set(acc, 'follow', { on: true }, userId), /לא ניתן/);
+});

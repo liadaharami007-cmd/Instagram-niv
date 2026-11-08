@@ -26,7 +26,12 @@ export function growthRoutes(app: FastifyInstance, ctx: Ctx) {
   app.post('/api/accounts/:id/targets', async (req: any) => {
     const b = req.body ?? {};
     if (typeof b.usernames !== 'string' || !b.usernames.trim()) throw badRequest('יש להזין לפחות שם משתמש אחד');
-    return ctx.targets.add(acc(req), req.auth.userId, b.usernames, {
+    const a = acc(req);
+    if (b.autoLike && ctx.db.get(`SELECT 1 FROM schedules WHERE account_id = ? AND job_type = 'auto_like_plan' AND enabled = 1`, a.id)) {
+      // New like targets start working right away instead of waiting for the next hourly round.
+      ctx.queue.enqueue({ type: 'auto_like_plan', orgId: a.org_id, accountId: a.id, priority: 20, dedupeKey: `auto_like_plan:${a.id}` });
+    }
+    return ctx.targets.add(a, req.auth.userId, b.usernames, {
       segment: typeof b.segment === 'string' ? b.segment.trim() || undefined : undefined,
       followWanted: !!b.followWanted,
       engageStories: !!b.engageStories,

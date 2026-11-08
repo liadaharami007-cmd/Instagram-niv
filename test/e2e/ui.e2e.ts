@@ -72,8 +72,24 @@ try {
   assert.ok(await page.isVisible('text=לא הוגדר עדיין'), 'OAuth shows as not configured without app secrets');
   await page.fill('input[name=token]', 'test-token-xxxxxxxxxxxxxxxxxxxx');
   await page.click('text=אימות וחיבור');
-  await page.waitForURL(/#\/a\/acc_.*\/growth/);
+  await page.waitForURL(/#\/a\/acc_.*\/autopilot/);
   step('connected Instagram account via token');
+
+  // Autopilot: price replies are ON by default — a comment is answered with no setup at all
+  await page.waitForSelector('text=הכול פועל אוטומטית');
+  assert.ok(await page.locator('.feature:has-text("מחיר") input[type=checkbox]').isChecked(), 'price auto-reply on by default');
+  assert.equal(await page.locator('.feature.unsupported').count(), 1, 'follow/unfollow shown as not supported');
+  const priceHook = JSON.stringify({ object: 'instagram', entry: [{ id: fake.state.igUserId, time: 1, changes: [{ field: 'comments', value: { id: '70001', text: 'כמה עולה?', from: { id: '4441', username: 'buyer.one' }, media: { id: '17900000000000001' } } }] }] });
+  await fetch(`${base}/meta/webhook`, { method: 'POST', body: priceHook, headers: { 'content-type': 'application/json', 'x-hub-signature-256': 'sha256=' + createHmac('sha256', 'e2e-secret').update(priceHook).digest('hex') } });
+  await waitFor(async () => fake.state.messages.length === 1);
+  assert.match(fake.state.messages[0].message.text, /תודה על ההתעניינות/);
+  await page.click('.feature:has-text("מחיר") >> text=✏️ שינוי הנוסח');
+  await page.fill('.feature:has-text("מחיר") textarea', 'המחיר 199₪ כולל משלוח 🚚');
+  await page.click('.feature:has-text("מחיר") >> text=שמירה');
+  await page.waitForSelector('text=המחיר 199₪ כולל משלוח');
+  await page.screenshot({ path: join(shots, '11-autopilot.png'), fullPage: true });
+  step('autopilot: "כמה עולה?" answered by private message with zero setup; message edited in one step');
+  await page.goto(page.url().replace('/autopilot', '/growth'));
 
   const accId = page.url().match(/acc_[^/]+/)![0];
   await waitFor(async () => {
@@ -87,7 +103,7 @@ try {
   await page.screenshot({ path: join(shots, '1-growth.png'), fullPage: true });
   step('growth dashboard shows synced followers, charts, weekly report, posts');
 
-  const accUrl = page.url().replace(/\/growth.*/, '');
+  const accUrl = page.url().replace(/\/(growth|autopilot).*/, '');
   await page.goto(`${accUrl}/capabilities`);
   await page.waitForSelector('text=מה עובד');
   await page.waitForSelector('tbody tr');
@@ -166,7 +182,7 @@ try {
   const sig = 'sha256=' + createHmac('sha256', 'e2e-secret').update(hook).digest('hex');
   const hr = await fetch(`${base}/meta/webhook`, { method: 'POST', body: hook, headers: { 'content-type': 'application/json', 'x-hub-signature-256': sig } });
   assert.equal(hr.status, 200);
-  await waitFor(async () => fake.state.replies.length === 1 && fake.state.messages.length === 1, 10_000);
+  await waitFor(async () => fake.state.replies.length === 2 && fake.state.messages.length === 2, 10_000);
   await page.reload();
   await page.waitForSelector('td:has-text("happy.customer")');
   await page.screenshot({ path: join(shots, '8-replies.png'), fullPage: true });
@@ -181,11 +197,9 @@ try {
   await page.click('form >> text=שמירה');
   await page.waitForSelector('text=נשמר');
   await page.goto(`${accUrl}/likes`);
-  await page.waitForSelector('text=המנוע כבוי');
+  await page.waitForSelector('text=המנוע פועל'); // on by default (autopilot)
   await page.fill('input[name=usernames]', 'target.biz, competitor.one');
   await page.click('text=הוספה למנוע');
-  await page.waitForSelector('text=▶ הפעלה');
-  await page.click('text=▶ הפעלה');
   await waitFor(async () => {
     await page.reload();
     await page.waitForSelector('text=יומן פעולות');
@@ -195,7 +209,7 @@ try {
   await page.click('text=⏹ עצירה');
   await waitFor(async () => (await page.locator('.badge:has-text("בוטל")').count()) === 2);
   assert.equal(fake.state.likes.length, 0, 'stopped before any scheduled like ran');
-  step('likes engine: started from UI, found fresh posts via Business Discovery, queued spaced likes, stopped and cancelled');
+  step('likes engine: on by default, targets added → fresh posts found via Business Discovery, spaced likes queued, stopped and cancelled');
 
   await page.goto(`${accUrl}/safety`);
   await page.waitForSelector('text=אירועי בטיחות');
@@ -237,6 +251,7 @@ try {
   step('overview page, no browser console errors');
   console.log(`\nE2E PASSED — screenshots in ${shots}`);
 } catch (err) {
+  for (const p of browser?.contexts().flatMap((c: any) => c.pages()) ?? []) await p.screenshot({ path: join(shots, 'failure.png'), fullPage: true }).catch(() => {});
   console.error('E2E FAILED:', err);
   process.exitCode = 1;
 } finally {

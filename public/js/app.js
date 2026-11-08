@@ -64,7 +64,7 @@ function renderNav() {
     h('div', { class: 'brand' }, h('img', { src: '/favicon.svg', alt: '' }), 'Instagram Niv Bot'),
     navLink('#/', 'סקירה כללית', cur === '#/' || cur === '#'),
     h('div', { class: 'nav-section' }, 'חשבונות'),
-    state.accounts.map((a) => navLink(`#/a/${a.id}/growth`, h('span', { class: 'row' }, `@${a.username}`, a.is_demo ? h('span', { class: 'badge primary' }, 'הדגמה') : null, a.status !== 'active' ? statusBadge(a.status) : null), cur.startsWith(`#/a/${a.id}`))),
+    state.accounts.map((a) => navLink(`#/a/${a.id}/autopilot`, h('span', { class: 'row' }, `@${a.username}`, a.is_demo ? h('span', { class: 'badge primary' }, 'הדגמה') : null, a.status !== 'active' ? statusBadge(a.status) : null), cur.startsWith(`#/a/${a.id}`))),
     navLink('#/accounts', '+ חיבור חשבון', cur.startsWith('#/accounts')),
     h('div', { class: 'nav-section' }, 'ארגון'),
     navLink('#/activity', 'יומן פעילות', cur.startsWith('#/activity')),
@@ -185,7 +185,7 @@ function demoButton(size = '') {
   return h('button', { class: ['btn', size], onclick: action(async () => {
     const r = await api.post('/api/demo');
     await refreshAccounts();
-    location.hash = `#/a/${r.id}/growth`;
+    location.hash = `#/a/${r.id}/autopilot`;
   }) }, '🎬 פתיחת חשבון הדגמה');
 }
 
@@ -212,7 +212,7 @@ function accountCard(a) {
     h('h3', {}, 'משימות ידניות היום (לא אוטומטי)'),
     line('Follow', t.follow), line('Unfollow', t.unfollow), line('לייקים לסטוריז', t.story_like),
     h('div', { class: 'row between' }, h('span', { class: 'small muted' }, `סנכרון אחרון: ${ago(a.last_synced_at)}`),
-      h('a', { class: 'btn', href: `#/a/${a.id}/capabilities` }, 'מה עובד בחשבון')));
+      h('a', { class: 'btn primary', href: `#/a/${a.id}/autopilot` }, '🚀 אוטומטי')));
 }
 
 // ───────────── Connect ─────────────
@@ -244,7 +244,7 @@ async function connectPage(main, query) {
     const r = await api.post('/api/accounts/connect-token', data);
     toast(`חובר: ${r.accounts.map((a) => '@' + a.username).join(', ')}`, 'good');
     await refreshAccounts();
-    location.hash = `#/a/${r.accounts[0].id}/growth`;
+    location.hash = `#/a/${r.accounts[0].id}/autopilot`;
   }));
 
   mount(main,

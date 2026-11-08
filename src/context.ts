@@ -15,6 +15,7 @@ import { DemoService } from './services/demo.ts';
 import { PublishingService } from './services/publishing.ts';
 import { AutoReplyService } from './services/auto-replies.ts';
 import { EngagementService } from './services/engagement.ts';
+import { AutopilotService } from './services/autopilot.ts';
 
 /** Composition root: every service receives the same shared context. */
 export interface Ctx {
@@ -36,6 +37,7 @@ export interface Ctx {
   publishing: PublishingService;
   autoReplies: AutoReplyService;
   engagement: EngagementService;
+  autopilot: AutopilotService;
 }
 
 export function createContext(config: Config, opts: { fetchImpl?: FetchLike; now?: () => number; db?: Db } = {}): Ctx {
@@ -56,6 +58,7 @@ export function createContext(config: Config, opts: { fetchImpl?: FetchLike; now
   ctx.publishing = new PublishingService(ctx);
   ctx.autoReplies = new AutoReplyService(ctx);
   ctx.engagement = new EngagementService(ctx);
+  ctx.autopilot = new AutopilotService(ctx);
   ctx.graph.onUsage = (accountId, usage) => ctx.safety.onUsage(accountId, usage);
   return ctx;
 }

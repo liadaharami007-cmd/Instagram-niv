@@ -198,6 +198,8 @@ export class DemoService {
         JSON.stringify(['שלחנו לך את כל הפרטים בהודעה פרטית 💌', 'היי {username}, הפרטים מחכים לך בדיירקט ✨']), 'היי! תודה שפנית 🙏 המחיר: 249₪, משלוח חינם. להזמנה: niv.demo/shop', 38, now - 20 * DAY, now - 20 * DAY, now);
       rule.run(rThanks, orgId, id, 'תודה על כל תגובה', 'comment', 'any', '[]', JSON.stringify(['תודה רבה {username} ❤️', 'איזה כיף לקרוא, תודה! 🙏']), null, 112, now - 20 * DAY, now - 20 * DAY, now);
       rule.run(rDm, orgId, id, 'הודעת פתיחה בדיירקט', 'dm', 'any', '[]', '[]', 'היי, תודה שכתבת לנו! 🙌 נחזור אליך תוך שעה.', 27, now - 20 * DAY, now - 20 * DAY, now);
+      db.run(`UPDATE reply_rules SET system_key = 'price_reply' WHERE id = ?`, rPrice);
+      db.run(`UPDATE reply_rules SET system_key = 'dm_welcome' WHERE id = ?`, rDm);
       const reply = db.raw.prepare(
         `INSERT INTO auto_replies (org_id, account_id, rule_id, channel, source_id, from_username, incoming_text, action, reply_text, status, created_at) VALUES (?,?,?,?,?,?,?,?,?, 'sent', ?)`,
       );

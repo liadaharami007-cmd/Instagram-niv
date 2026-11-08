@@ -54,7 +54,7 @@ test('worker syncs real profile/insights/media/stories data through the full pip
   assert.equal(acc.username, 'niv.studio');
   assert.ok(acc.token_expires_at! > ctx.now(), 'short token exchanged for long-lived (60d)');
   const worker = new Worker(ctx);
-  assert.equal(await drain(ctx, worker), 4, 'initial sync jobs: profile, insights, media, stories');
+  assert.equal(await drain(ctx, worker), 5, 'initial jobs: profile, insights, media, stories + webhook subscription for autopilot replies');
   const jobs = ctx.db.all<{ type: string; status: string; last_error: string }>('SELECT type, status, last_error FROM jobs');
   assert.ok(jobs.every((j) => j.status === 'succeeded'), JSON.stringify(jobs));
 
@@ -137,12 +137,12 @@ test('safety: rate limit pauses the account and defers jobs until access returns
   let a = ctx.accounts.findById(acc.id)!;
   assert.equal(a.status, 'paused');
   assert.ok(a.paused_until! >= clock.now + 30 * MINUTE - 1);
-  assert.equal(ctx.db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM jobs WHERE status = 'queued'`)!.n, 4, 'nothing lost, all deferred');
+  assert.equal(ctx.db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM jobs WHERE status = 'queued'`)!.n, 5, 'nothing lost, all deferred');
   clock.now = a.paused_until! + 1;
   await drain(ctx, worker);
   a = ctx.accounts.findById(acc.id)!;
   assert.equal(a.status, 'active');
-  assert.equal(ctx.db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM jobs WHERE status = 'succeeded'`)!.n, 4);
+  assert.equal(ctx.db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM jobs WHERE status = 'succeeded'`)!.n, 5);
 });
 
 test('safety: high usage header throttles proactively; transient errors trip circuit breaker', async () => {

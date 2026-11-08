@@ -67,6 +67,11 @@ async function click(locator: any) {
   await show(locator);
   await locator.click();
 }
+async function openTab(match: string | RegExp) {
+  const tab = page.locator('.tabs a.tab').filter({ hasText: match }).first();
+  if (!(await tab.isVisible())) await page.locator('.tabs a.tab').filter({ hasText: 'עוד' }).click();
+  await click(tab);
+}
 async function scroll(px: number, steps = 12) {
   for (let i = 0; i < steps; i++) {
     await page.mouse.wheel(0, px / steps);
@@ -87,10 +92,19 @@ try {
   await page.waitForSelector('text=בחר איך להתחיל');
   await caption('חיבור חשבון אמיתי — או הדגמה בלחיצה אחת', 2400);
   await click(page.locator('text=🎬 פתיחת חשבון הדגמה').first());
+  await page.waitForSelector('text=הכול פועל אוטומטית');
+  await sleep(600);
+  await caption('🚀 מסך אחד: כל אוטומציה היא מתג אחד — והכול מופעל כבר מההתחלה', 3800);
+  await show(page.locator('.feature:has-text("מחיר")'), 500);
+  await caption('מישהו כתב "מחיר"? הוא מקבל הודעה פרטית אוטומטית — בלי להפעיל כלום', 3800);
+  await click(page.locator('.feature:has-text("מחיר") >> text=✏️ שינוי הנוסח'));
+  await caption('רוצים לשנות את הנוסח? לחיצה אחת', 2400);
+  await show(page.locator('.feature.unsupported'), 500);
+  await caption('Follow / Unfollow / לייק לסטורי — Meta לא מאפשרת אוטומציה, וזה מוצג בשקיפות', 3800);
+  await click(page.locator('.tabs a.tab').filter({ hasText: 'נתונים' }));
   await page.waitForSelector('text=בשורה התחתונה');
   await sleep(800);
-  await caption('🎬 חשבון הדגמה: 90 ימים של נתונים לדוגמה', 2600);
-  await show(page.locator('.card:has-text("בשורה התחתונה")'), 400);
+    await show(page.locator('.card:has-text("בשורה התחתונה")'), 400);
   await caption('"בשורה התחתונה" — סיכום השבוע במילים פשוטות', 3400);
   await scroll(330);
   await caption('עוקבים, שינוי יומי, שבועי וחודשי — מנתונים אמיתיים בלבד', 3000);
@@ -103,7 +117,7 @@ try {
   await page.mouse.wheel(0, -6000);
   await sleep(500);
 
-  await click(page.locator('.tabs >> text=✅ מה עובד'));
+  await openTab('✅ מה עובד');
   await page.waitForSelector('text=מצב בחשבון הזה');
   await caption('שקיפות מלאה: מה אוטומטי דרך ה-API הרשמי של Meta — ומה לא נתמך', 3600);
   await show(page.locator('tr:has(strong:text-is("Follow אוטומטי"))'), 600);
@@ -112,7 +126,7 @@ try {
   await caption('נתוני צמיחה, בטיחות חשבון ולייקים לפוסטים — אוטומטיים, ומאומתים בהרצה אמיתית', 3800);
   await page.mouse.wheel(0, -3000);
 
-  await click(page.locator('.tabs >> text=❤️ לייקים אוטומטיים'));
+  await openTab('❤️ לייקים אוטומטיים');
   await page.waitForSelector('text=יומן פעולות');
   await caption('❤️ מנוע לייקים אמיתי (Likes API הרשמי): פוסטים ורילס של קהל היעד', 3800);
   await caption('קצב מבוקר, מגבלה יומית ושעתית, הפעלה ועצירה בכל רגע — וכל פעולה מנוטרת', 3800);
@@ -120,11 +134,11 @@ try {
   await sleep(1200);
   await page.mouse.wheel(0, -3000);
 
-  await click(page.locator('.tabs a.tab').filter({ hasText: /^Follow / }));
+  await openTab(/^Follow /);
   await page.waitForSelector('.task-card');
   await caption('Follow / Unfollow: כלי עזר לתיעוד ביצוע ידני בלבד — לא בוט', 3800);
 
-  await click(page.locator('.tabs >> text=📅 פרסום'));
+  await openTab('📅 פרסום');
   await page.waitForSelector('text=פרסום חדש');
   await caption('📅 פרסום מתוזמן — אוטומטי לגמרי, דרך ה-API הרשמי', 3200);
   await show(page.locator('.dropzone'), 900);
@@ -132,7 +146,7 @@ try {
   await show(page.locator('.card:has-text("מתוזמנים")').first(), 1200);
   await caption('פוסטים, רילס וסטוריז — רשימת המתוזמנים וההיסטוריה', 2800);
 
-  await click(page.locator('.tabs >> text=💬 מענה אוטומטי'));
+  await openTab('💬 מענה אוטומטי');
   await page.waitForSelector('text=הפעלה בלחיצה');
   await caption('💬 מענה אוטומטי לתגובות ולהודעות — אוטומטי לגמרי', 3200);
   await click(page.locator('.template:has-text("קופון") >> text=➕ הפעלה'));
@@ -142,18 +156,18 @@ try {
   await caption('כל תגובה שנשלחה מתועדת — עם הגבלה נגד ספאם', 3200);
   await page.mouse.wheel(0, -4000);
 
-  await click(page.locator('.tabs >> text=Unfollow'));
+  await openTab('Unfollow');
   await page.waitForSelector('text=כללי הסרת מעקב');
   await caption('Unfollow לפי כללים: רק מי שלא עוקב בחזרה, עם רשימה לבנה', 3200);
   await scroll(420);
   await caption('נתוני עוקבים אמיתיים מקובץ ההורדה הרשמי של אינסטגרם — כולל מי הפסיק לעקוב', 3600);
   await page.mouse.wheel(0, -3000);
 
-  await click(page.locator('.tabs >> text=אוטומציות'));
+  await openTab('אוטומציות');
   await page.waitForSelector('text=מנוע אוטומציות');
   await caption('אוטומציות ברקע — כל אחת ניתנת לעצירה והפעלה בכל רגע', 3400);
 
-  await click(page.locator('.tabs >> text=בטיחות חשבון'));
+  await openTab('בטיחות חשבון');
   await page.waitForSelector('text=אירועי בטיחות');
   await caption('בטיחות: זיהוי מגבלות של Meta, השהיה אוטומטית והקפאה אחרי חסימה', 3400);
   await scroll(500);

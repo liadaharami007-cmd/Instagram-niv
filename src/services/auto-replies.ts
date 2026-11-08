@@ -58,11 +58,11 @@ export function ruleMatches(rule: Pick<RuleRow, 'match_type' | 'keywords'>, text
 
 /** Ready-made rules for one-click setup. */
 export const TEMPLATES = [
-  { key: 'price_dm', name: 'מי ששואל "מחיר" מקבל פרטים בפרטי', channel: 'comment', match_type: 'keywords', keywords: ['מחיר', 'כמה עולה', 'פרטים', 'price'], public_replies: ['שלחנו לך את כל הפרטים בהודעה פרטית 💌', 'היי {username}, הפרטים מחכים לך בדיירקט ✨'], dm_text: 'היי! תודה שפנית 🙏 הנה כל הפרטים: [כאן כותבים מחיר / קישור]. נשמח לעזור בכל שאלה.' },
+  { key: 'price_dm', name: 'מי ששואל "מחיר" מקבל פרטים בפרטי', channel: 'comment', match_type: 'keywords', keywords: ['מחיר', 'כמה עולה', 'פרטים', 'price'], public_replies: ['שלחנו לך את כל הפרטים בהודעה פרטית 💌', 'היי {username}, הפרטים מחכים לך בדיירקט ✨'], dm_text: 'היי! תודה על ההתעניינות 🙏 אשמח לתת לך את כל הפרטים — כתבו לי כאן מה מעניין אתכם ואחזור אליכם בהקדם.' },
   { key: 'thanks', name: 'תודה על כל תגובה', channel: 'comment', match_type: 'any', keywords: [], public_replies: ['תודה רבה {username} ❤️', 'איזה כיף לקרוא, תודה! 🙏', 'תודה {username}! 💛'], dm_text: null },
-  { key: 'coupon', name: 'מילת קוד → קופון בפרטי', channel: 'comment', match_type: 'keywords', keywords: ['קופון', 'הנחה'], public_replies: ['שלחנו לך קוד הנחה בפרטי 🎁'], dm_text: 'הנה קוד ההנחה שלך: [CODE] 🎁 בתוקף ל-48 שעות.' },
+  { key: 'coupon', name: 'מילת קוד → קופון בפרטי', channel: 'comment', match_type: 'keywords', keywords: ['קופון', 'הנחה'], public_replies: ['שלחנו לך קוד הנחה בפרטי 🎁'], dm_text: 'איזה כיף שבאת! 🎁 שלחו לנו כאן "קופון" ונשלח את קוד ההנחה העדכני.' },
   { key: 'dm_welcome', name: 'הודעת פתיחה בדיירקט', channel: 'dm', match_type: 'any', keywords: [], public_replies: [], dm_text: 'היי, תודה שכתבת לנו! 🙌 קיבלנו את ההודעה ונחזור אליך בהקדם.' },
-  { key: 'dm_hours', name: 'שעות פעילות / כתובת בדיירקט', channel: 'dm', match_type: 'keywords', keywords: ['שעות', 'כתובת', 'איפה', 'פתוחים'], public_replies: [], dm_text: 'אנחנו פתוחים א׳–ה׳ 9:00–19:00, ו׳ 9:00–14:00. כתובת: [כתובת העסק] 📍' },
+  { key: 'dm_hours', name: 'שעות פעילות / כתובת בדיירקט', channel: 'dm', match_type: 'keywords', keywords: ['שעות', 'כתובת', 'איפה', 'פתוחים'], public_replies: [], dm_text: 'תודה ששאלתם! 📍 נשלח לכם כאן את שעות הפעילות והכתובת בהקדם.' },
 ] as const;
 
 const pick = <T,>(arr: T[]) => arr[Math.floor(Math.random() * arr.length)];
