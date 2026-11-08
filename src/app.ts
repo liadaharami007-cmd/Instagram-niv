@@ -7,6 +7,7 @@ import { registerAuth } from './http/auth.ts';
 import { accountRoutes } from './http/routes/accounts.ts';
 import { growthRoutes } from './http/routes/growth.ts';
 import { systemRoutes, type Runtime } from './http/routes/system.ts';
+import { engageRoutes } from './http/routes/engage.ts';
 
 export async function buildApp(ctx: Ctx, runtime: Runtime = { startedAt: Date.now() }): Promise<FastifyInstance> {
   const app: FastifyInstance = Fastify({
@@ -17,7 +18,8 @@ export async function buildApp(ctx: Ctx, runtime: Runtime = { startedAt: Date.no
 
   // JSON parser that tolerates an empty body (e.g. DELETE/POST without payload).
   app.removeContentTypeParser('application/json');
-  app.addContentTypeParser('application/json', { parseAs: 'string' }, (_req, body, done) => {
+  app.addContentTypeParser('application/json', { parseAs: 'string' }, (req, body, done) => {
+    (req as any).rawBody = body; // needed to verify Meta webhook signatures
     if (!body) return done(null, {});
     try {
       done(null, JSON.parse(String(body)));
@@ -57,6 +59,7 @@ export async function buildApp(ctx: Ctx, runtime: Runtime = { startedAt: Date.no
   accountRoutes(app, ctx);
   growthRoutes(app, ctx);
   systemRoutes(app, ctx, runtime);
+  engageRoutes(app, ctx);
 
   await app.register(fastifyStatic, { root: resolve(import.meta.dirname, '..', 'public'), index: 'index.html', maxAge: ctx.config.env === 'production' ? '1h' : 0 });
   app.setNotFoundHandler((req, reply) => {

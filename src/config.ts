@@ -1,5 +1,5 @@
 import { readFileSync, existsSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 
 /** Loads KEY=VALUE pairs from .env (if present) without overriding real env vars. */
 function loadDotEnv(path = resolve(process.cwd(), '.env')): void {
@@ -18,6 +18,8 @@ export interface Config {
   host: string;
   publicBaseUrl: string;
   databasePath: string;
+  /** Where uploaded media for publishing is stored (served publicly under /u/<random id>). */
+  uploadsDir: string;
   /** 32-byte key (base64) used for AES-256-GCM encryption of access tokens. */
   encryptionKey: Buffer;
   role: 'all' | 'web' | 'worker';
@@ -28,6 +30,8 @@ export interface Config {
     /** Instagram API with Instagram Login (graph.instagram.com) */
     igAppId: string;
     igAppSecret: string;
+    /** Token you choose and paste in Meta App Dashboard → Webhooks → Verify token. */
+    webhookVerifyToken: string;
     /** Instagram API with Facebook Login (graph.facebook.com) */
     fbAppId: string;
     fbAppSecret: string;
@@ -61,12 +65,14 @@ export function loadConfig(overrides: Partial<Record<string, string>> = {}): Con
   const graphVersion = e.META_GRAPH_VERSION ?? 'v23.0';
   if (!/^v\d+\.\d+$/.test(graphVersion)) throw new Error('META_GRAPH_VERSION must look like v23.0');
 
+  const databasePath = e.DATABASE_PATH ?? resolve(process.cwd(), 'data', 'niv-bot.db');
   return {
     env,
     port,
     host: e.HOST ?? '0.0.0.0',
     publicBaseUrl: (e.PUBLIC_BASE_URL ?? `http://localhost:${port}`).replace(/\/$/, ''),
-    databasePath: e.DATABASE_PATH ?? resolve(process.cwd(), 'data', 'niv-bot.db'),
+    databasePath,
+    uploadsDir: e.UPLOADS_DIR ?? join(databasePath === ':memory:' ? resolve(process.cwd(), 'data') : dirname(databasePath), 'uploads'),
     encryptionKey,
     role: (['web', 'worker'].includes(e.APP_ROLE ?? '') ? e.APP_ROLE : 'all') as Config['role'],
     logLevel: e.LOG_LEVEL ?? (env === 'test' ? 'silent' : 'info'),
@@ -75,6 +81,7 @@ export function loadConfig(overrides: Partial<Record<string, string>> = {}): Con
       graphVersion,
       igAppId: e.INSTAGRAM_APP_ID ?? '',
       igAppSecret: e.INSTAGRAM_APP_SECRET ?? '',
+      webhookVerifyToken: e.META_WEBHOOK_VERIFY_TOKEN ?? '',
       fbAppId: e.FACEBOOK_APP_ID ?? '',
       fbAppSecret: e.FACEBOOK_APP_SECRET ?? '',
       instagramGraphBase: e.TEST_INSTAGRAM_GRAPH_BASE ?? 'https://graph.instagram.com',

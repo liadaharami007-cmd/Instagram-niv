@@ -128,7 +128,7 @@ test('OAuth: start redirects with state, callback exchanges code and connects', 
   assert.equal(start.status, 302);
   const loc = new URL(String(start.headers.location));
   assert.equal(loc.host, 'www.instagram.com');
-  assert.equal(loc.searchParams.get('scope'), 'instagram_business_basic,instagram_business_manage_insights');
+  assert.ok(loc.searchParams.get('scope')!.startsWith('instagram_business_basic,instagram_business_manage_insights,'));
   const state = loc.searchParams.get('state')!;
   const cb = await call('GET', `/api/oauth/instagram_login/callback?code=abc&state=${state}`);
   assert.equal(cb.status, 302);

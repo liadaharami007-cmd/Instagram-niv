@@ -9,6 +9,7 @@ const ctx = createContext(config);
 const runtime: Runtime = { startedAt: Date.now() };
 
 // APP_ROLE: "all" (default) = HTTP + automation engine; "web" = HTTP only; "worker" = engine only.
+ctx.accounts.ensureAllSchedules();
 if (config.role !== 'web') {
   runtime.worker = new Worker(ctx);
   runtime.scheduler = new Scheduler(ctx);

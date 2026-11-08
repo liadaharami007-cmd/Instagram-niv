@@ -293,4 +293,86 @@ CREATE INDEX audit_log_account ON audit_log(account_id, created_at);
     name: 'demo_accounts',
     sql: `ALTER TABLE ig_accounts ADD COLUMN is_demo INTEGER NOT NULL DEFAULT 0;`,
   },
+  {
+    id: 3,
+    name: 'publishing_and_auto_replies',
+    sql: `
+CREATE TABLE uploads (
+  id TEXT PRIMARY KEY,
+  org_id TEXT NOT NULL,
+  account_id TEXT NOT NULL REFERENCES ig_accounts(id) ON DELETE CASCADE,
+  filename TEXT NOT NULL,
+  content_type TEXT NOT NULL,
+  size INTEGER NOT NULL,
+  width INTEGER,
+  height INTEGER,
+  created_at INTEGER NOT NULL
+);
+
+CREATE TABLE scheduled_posts (
+  id TEXT PRIMARY KEY,
+  org_id TEXT NOT NULL,
+  account_id TEXT NOT NULL REFERENCES ig_accounts(id) ON DELETE CASCADE,
+  media_type TEXT NOT NULL CHECK (media_type IN ('IMAGE','REELS','STORIES')),
+  media_url TEXT NOT NULL,
+  upload_id TEXT,
+  caption TEXT,
+  scheduled_at INTEGER NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('scheduled','publishing','published','failed','cancelled')),
+  container_id TEXT,
+  ig_media_id TEXT,
+  permalink TEXT,
+  error TEXT,
+  created_by TEXT,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  published_at INTEGER
+);
+CREATE INDEX scheduled_posts_account ON scheduled_posts(account_id, scheduled_at);
+
+CREATE TABLE reply_rules (
+  id TEXT PRIMARY KEY,
+  org_id TEXT NOT NULL,
+  account_id TEXT NOT NULL REFERENCES ig_accounts(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  channel TEXT NOT NULL CHECK (channel IN ('comment','dm')),
+  match_type TEXT NOT NULL CHECK (match_type IN ('any','keywords')),
+  keywords TEXT NOT NULL DEFAULT '[]',
+  public_replies TEXT NOT NULL DEFAULT '[]',
+  dm_text TEXT,
+  media_id TEXT,
+  enabled INTEGER NOT NULL DEFAULT 1,
+  priority INTEGER NOT NULL DEFAULT 100,
+  hits INTEGER NOT NULL DEFAULT 0,
+  enabled_at INTEGER NOT NULL,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX reply_rules_account ON reply_rules(account_id, channel, enabled);
+
+CREATE TABLE auto_replies (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  org_id TEXT NOT NULL,
+  account_id TEXT NOT NULL REFERENCES ig_accounts(id) ON DELETE CASCADE,
+  rule_id TEXT,
+  channel TEXT NOT NULL,
+  source_id TEXT NOT NULL,
+  from_id TEXT,
+  from_username TEXT,
+  incoming_text TEXT,
+  action TEXT NOT NULL CHECK (action IN ('public_reply','private_reply','dm_reply')),
+  reply_text TEXT,
+  status TEXT NOT NULL CHECK (status IN ('sent','failed','skipped')),
+  error TEXT,
+  created_at INTEGER NOT NULL,
+  UNIQUE (account_id, source_id, action)
+);
+CREATE INDEX auto_replies_account ON auto_replies(account_id, created_at);
+
+ALTER TABLE account_settings ADD COLUMN auto_reply_hourly_limit INTEGER NOT NULL DEFAULT 30;
+ALTER TABLE ig_accounts ADD COLUMN comments_polled_at INTEGER;
+ALTER TABLE ig_accounts ADD COLUMN webhook_subscribed_at INTEGER;
+ALTER TABLE ig_accounts ADD COLUMN last_webhook_at INTEGER;
+`,
+  },
 ];

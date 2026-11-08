@@ -4,8 +4,14 @@ import type { FetchLike, GraphClient, Provider } from './graph-client.ts';
 
 /** Only the permissions this product actually uses — minimises App Review scope. */
 export const SCOPES: Record<Provider, string[]> = {
-  instagram_login: ['instagram_business_basic', 'instagram_business_manage_insights'],
-  facebook_login: ['instagram_basic', 'instagram_manage_insights', 'pages_show_list', 'pages_read_engagement', 'business_management'],
+  instagram_login: [
+    'instagram_business_basic', 'instagram_business_manage_insights', 'instagram_business_content_publish',
+    'instagram_business_manage_comments', 'instagram_business_manage_messages',
+  ],
+  facebook_login: [
+    'instagram_basic', 'instagram_manage_insights', 'instagram_content_publish', 'instagram_manage_comments', 'instagram_manage_messages',
+    'pages_show_list', 'pages_read_engagement', 'pages_manage_metadata', 'business_management',
+  ],
 };
 
 export interface ConnectedProfile {

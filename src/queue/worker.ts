@@ -1,9 +1,11 @@
+import { existsSync, readdirSync, rmSync } from 'node:fs';
 import { hostname } from 'node:os';
+import { join } from 'node:path';
 import type { Ctx } from '../context.ts';
 import { MetaApiError } from '../meta/errors.ts';
 import { API_JOB_TYPES, type AccountRow } from '../services/accounts.ts';
 import { DAY } from '../lib/time.ts';
-import type { Job } from './queue.ts';
+import { RetryLater, type Job } from './queue.ts';
 
 export type Handler = (job: Job, account: AccountRow | undefined, ctx: Ctx) => Promise<unknown>;
 
@@ -17,6 +19,16 @@ export const handlers: Record<string, Handler> = {
   enrich_targets: (_j, a, ctx) => ctx.analytics.enrichTargets(a!),
   refresh_token: (_j, a, ctx) => ctx.accounts.refreshTokenIfNeeded(a!),
   plan_manual_tasks: async (_j, a, ctx) => ctx.tasks.plan(a!),
+  publish_post: (j, a, ctx) => ctx.publishing.publish(a!, String(j.payload.postId)),
+  poll_comments: (_j, a, ctx) => ctx.autoReplies.pollComments(a!),
+  process_comment: (j, a, ctx) => ctx.autoReplies.handleComment(a!, j.payload.comment),
+  process_dm: (j, a, ctx) => ctx.autoReplies.handleMessage(a!, j.payload.message),
+  subscribe_webhooks: (_j, a, ctx) => ctx.autoReplies.subscribe(a!),
+};
+
+/** Runs when a job fails for good, so domain records never stay stuck "in progress". */
+const onFinalFailure: Record<string, (job: Job, ctx: Ctx, error: string) => void> = {
+  publish_post: (job, ctx, error) => ctx.publishing.markFailed(String(job.payload.postId), error),
 };
 
 export const JOB_LABELS: Record<string, string> = {
@@ -28,6 +40,11 @@ export const JOB_LABELS: Record<string, string> = {
   enrich_targets: 'העשרת קהל יעד (Business Discovery)',
   refresh_token: 'חידוש טוקן גישה',
   plan_manual_tasks: 'תכנון משימות ידניות יומיות',
+  publish_post: 'פרסום פוסט מתוזמן',
+  poll_comments: 'בדיקת תגובות חדשות למענה אוטומטי',
+  process_comment: 'מענה אוטומטי לתגובה',
+  process_dm: 'מענה אוטומטי להודעה',
+  subscribe_webhooks: 'הרשמה לעדכונים בזמן אמת (Webhooks)',
 };
 
 export class Worker {
@@ -82,6 +99,7 @@ export class Worker {
     }
     if (account?.is_demo && API_JOB_TYPES.has(job.type)) {
       // Demo accounts have no Meta connection: never call the API for them.
+      if (job.type === 'publish_post') ctx.publishing.markFailed(String(job.payload.postId), 'חשבון הדגמה — הפרסום לא נשלח לאינסטגרם');
       ctx.queue.complete(job.id, { skipped: 'demo account' });
       return;
     }
@@ -100,14 +118,19 @@ export class Worker {
       ctx.queue.complete(job.id, result);
       log.info({ ms: Date.now() - started }, 'job succeeded');
     } catch (err) {
+      if (err instanceof RetryLater) {
+        ctx.queue.defer(job.id, err.retryAt, err.message);
+        return;
+      }
       if (err instanceof MetaApiError && account) {
         const decision = ctx.safety.apiFailed(ctx.accounts.findById(account.id)!, err);
         const msg = `${err.userMessage} — ${err.message}${err.code ? ` (code ${err.code}${err.subcode ? `/${err.subcode}` : ''})` : ''}`;
         if (decision.action === 'defer') ctx.queue.defer(job.id, decision.retryAt!, msg);
-        else ctx.queue.fail(job.id, msg, { permanent: decision.action === 'drop' });
+        else if (ctx.queue.fail(job.id, msg, { permanent: decision.action === 'drop' }) === 'failed') onFinalFailure[job.type]?.(job, ctx, msg);
         log.warn({ kind: err.kind, code: err.code, decision: decision.action }, 'meta api error');
       } else {
         const outcome = ctx.queue.fail(job.id, (err as Error).message ?? String(err));
+        if (outcome === 'failed') onFinalFailure[job.type]?.(job, ctx, (err as Error).message ?? String(err));
         log.error({ err, outcome }, 'job failed');
       }
     }
@@ -169,6 +192,7 @@ export class Scheduler {
         const calls = ctx.db.run('DELETE FROM api_calls WHERE created_at < ?', now - 30 * DAY).changes;
         const sessions = ctx.db.run('DELETE FROM sessions WHERE expires_at < ?', now).changes;
         ctx.db.run('DELETE FROM oauth_states WHERE expires_at < ?', now);
+        removeOrphanUploads(ctx);
         ctx.log.info({ jobs, calls, sessions }, 'housekeeping done');
       }
     } catch (err) {
@@ -176,4 +200,11 @@ export class Scheduler {
     }
     return enqueued;
   }
+}
+
+/** Deletes uploaded files whose account (and therefore DB row) was removed. */
+function removeOrphanUploads(ctx: Ctx) {
+  const dir = ctx.config.uploadsDir;
+  if (!existsSync(dir)) return;
+  for (const f of readdirSync(dir)) if (!ctx.db.get('SELECT 1 FROM uploads WHERE id = ?', f)) rmSync(join(dir, f), { force: true });
 }

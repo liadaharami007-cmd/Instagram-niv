@@ -33,6 +33,15 @@ export function backoffMs(attempt: number, random = Math.random): number {
   return Math.round(base * (0.8 + random() * 0.4));
 }
 
+/** Thrown by a handler to re-run the job later without counting a failed attempt (e.g. video still processing). */
+export class RetryLater extends Error {
+  readonly retryAt: number;
+  constructor(retryAt: number, message: string) {
+    super(message);
+    this.retryAt = retryAt;
+  }
+}
+
 const toJob = (r: Row): Job => ({ ...r, payload: JSON.parse(r.payload) }) as Job;
 
 /**

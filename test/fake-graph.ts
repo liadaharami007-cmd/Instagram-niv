@@ -26,6 +26,13 @@ export function createFakeGraph() {
       ['target.biz', { followers_count: 4000, media_count: 120, name: 'Target Biz' }],
     ]),
     usageHeader: null as string | null,
+    containers: new Map<string, { status: string; params: Record<string, string> }>(),
+    published: [] as string[],
+    publishQuota: 3,
+    comments: [] as { mediaId: string; id: string; text: string; username: string; timestamp: string }[],
+    replies: [] as { commentId: string; message: string }[],
+    messages: [] as { recipient: any; message: any }[],
+    subscriptions: [] as string[],
     calls: [] as string[],
   };
   const injected: Injected[] = [];
@@ -60,6 +67,41 @@ export function createFakeGraph() {
     if (path === '/me/permissions') return json(200, { data: ['instagram_basic', 'instagram_manage_insights', 'pages_show_list', 'pages_read_engagement'].map((permission) => ({ permission, status: 'granted' })) });
     if (path === '/me/accounts')
       return json(200, { data: [{ id: '1050000000000001', name: 'Niv Page', access_token: 'page-token-xxxxxxxxxxxxxxxxxxxx', instagram_business_account: { id: state.igUserId, username: state.username, followers_count: state.followers, follows_count: state.follows, media_count: state.media } }] });
+
+    const method = init?.method ?? 'GET';
+    const ig = state.igUserId;
+    if (path === `/${ig}/content_publishing_limit`) return json(200, { data: [{ quota_usage: state.publishQuota, config: { quota_total: 100, quota_duration: 86400 } }] });
+    if (path === `/${ig}/media` && method === 'POST') {
+      const id = `1800000000000${state.containers.size + 1}`;
+      state.containers.set(id, { status: params.get('video_url') ? 'IN_PROGRESS' : 'FINISHED', params: Object.fromEntries(params) });
+      return json(200, { id });
+    }
+    if (path === `/${ig}/media_publish`) {
+      const c = state.containers.get(params.get('creation_id') ?? '');
+      if (!c || c.status !== 'FINISHED') return err(9007, 'Media ID is not available', 400, 2207027);
+      c.status = 'PUBLISHED';
+      const id = `1790000000555${state.published.length + 1}`;
+      state.published.push(id);
+      return json(200, { id });
+    }
+    const container = state.containers.get(path.slice(1));
+    if (container) return json(200, { id: path.slice(1), status_code: container.status, status: container.status === 'ERROR' ? 'Error: 2207026' : undefined });
+    if (path.startsWith('/179000000055') && params.get('fields') === 'permalink') return json(200, { permalink: `https://www.instagram.com/p/${path.slice(-4)}/` });
+    if (path === `/${ig}/subscribed_apps` || path.endsWith('/subscribed_apps')) {
+      state.subscriptions.push(params.get('subscribed_fields') ?? '');
+      return json(200, { success: true });
+    }
+    if (path === `/${ig}/messages`) {
+      state.messages.push({ recipient: JSON.parse(params.get('recipient') ?? '{}'), message: JSON.parse(params.get('message') ?? '{}') });
+      return json(200, { recipient_id: '1', message_id: `mid.${state.messages.length}` });
+    }
+    const replies = path.match(/^\/(\d+)\/replies$/);
+    if (replies) {
+      state.replies.push({ commentId: replies[1], message: params.get('message') ?? '' });
+      return json(200, { id: `1810000000${state.replies.length}` });
+    }
+    const comments = path.match(/^\/(\d+)\/comments$/);
+    if (comments) return json(200, { data: state.comments.filter((c) => c.mediaId === comments[1]).map(({ mediaId: _m, ...c }) => ({ ...c, from: { id: `99${c.id}`, username: c.username } })) });
 
     const profile = () => ({ id: state.igUserId, user_id: state.igUserId, username: state.username, name: 'Niv Studio', account_type: 'BUSINESS', followers_count: state.followers, follows_count: state.follows, media_count: state.media });
     if (path === '/me') return json(200, profile(), usage);

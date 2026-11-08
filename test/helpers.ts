@@ -1,4 +1,7 @@
 import { deflateRawSync } from 'node:zlib';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { loadConfig } from '../src/config.ts';
 import { createContext, type Ctx } from '../src/context.ts';
 import { openDb } from '../src/db/index.ts';
@@ -10,6 +13,9 @@ export function testCtx(opts: { now?: number; meta?: boolean } = {}) {
   const config = loadConfig({
     NODE_ENV: 'test',
     DATABASE_PATH: ':memory:',
+    UPLOADS_DIR: mkdtempSync(join(tmpdir(), 'nivbot-up-')),
+    PUBLIC_BASE_URL: 'https://bot.example.com',
+    META_WEBHOOK_VERIFY_TOKEN: 'verify-me',
     ...(opts.meta === false ? {} : { INSTAGRAM_APP_ID: 'ig-app', INSTAGRAM_APP_SECRET: 'ig-secret', FACEBOOK_APP_ID: 'fb-app', FACEBOOK_APP_SECRET: 'fb-secret' }),
   });
   const ctx: Ctx = createContext(config, { fetchImpl: fake.fetch, now: () => clock.now, db: openDb(':memory:') });

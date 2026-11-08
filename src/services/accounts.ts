@@ -33,6 +33,9 @@ export interface AccountRow {
   media_count: number | null;
   last_synced_at: number | null;
   is_demo: number;
+  comments_polled_at: number | null;
+  webhook_subscribed_at: number | null;
+  last_webhook_at: number | null;
   created_at: number;
   updated_at: number;
 }
@@ -51,6 +54,7 @@ export interface AccountSettings {
   active_hour_start: number;
   active_hour_end: number;
   block_cooldown_hours: number;
+  auto_reply_hourly_limit: number;
 }
 
 /** Background automations per account. All are official Graph API reads or local planning. */
@@ -60,12 +64,16 @@ export const SCHEDULE_DEFAULTS: { type: string; intervalSec: number; providers?:
   { type: 'sync_media', intervalSec: 12 * 3600 },
   { type: 'sync_stories', intervalSec: 4 * 3600 },
   { type: 'plan_manual_tasks', intervalSec: 3600 },
+  { type: 'poll_comments', intervalSec: 15 * 60 },
   { type: 'refresh_token', intervalSec: 24 * 3600, providers: ['instagram_login'] },
   { type: 'enrich_targets', intervalSec: 6 * 3600, providers: ['facebook_login'] },
   { type: 'sync_competitors', intervalSec: 24 * 3600, providers: ['facebook_login'] },
 ];
 
-export const API_JOB_TYPES = new Set(['sync_profile', 'sync_insights', 'sync_media', 'sync_stories', 'refresh_token', 'enrich_targets', 'sync_competitors']);
+export const API_JOB_TYPES = new Set([
+  'sync_profile', 'sync_insights', 'sync_media', 'sync_stories', 'refresh_token', 'enrich_targets', 'sync_competitors',
+  'publish_post', 'poll_comments', 'process_comment', 'process_dm', 'subscribe_webhooks',
+]);
 
 const SETTINGS_RULES: Record<string, [number, number]> = {
   daily_follow_limit: [0, HARD_LIMITS.daily_follow_limit],
@@ -79,6 +87,7 @@ const SETTINGS_RULES: Record<string, [number, number]> = {
   active_hour_start: [0, 23],
   active_hour_end: [1, 24],
   block_cooldown_hours: [12, 168],
+  auto_reply_hourly_limit: [1, 200],
 };
 
 export class AccountsService {
@@ -157,6 +166,11 @@ export class AccountsService {
     return saved;
   }
 
+  /** Adds schedules introduced by newer versions to already-connected accounts. */
+  ensureAllSchedules() {
+    for (const a of this.ctx.db.all<AccountRow>(`SELECT * FROM ig_accounts WHERE is_demo = 0 AND status != 'disconnected'`)) this.ensureSchedules(a.org_id, a.id, a.provider);
+  }
+
   private ensureSchedules(orgId: string, accountId: string, provider: Provider) {
     const now = this.ctx.now();
     for (const s of SCHEDULE_DEFAULTS) {
@@ -190,7 +204,8 @@ export class AccountsService {
           if (err instanceof MetaApiError && err.kind === 'token_invalid') throw badRequest('Meta דחתה את הטוקן: ' + err.message);
         }
       }
-      profiles = [await this.ctx.oauth.profileFromInstagramToken(usable, expiresAt, ['instagram_business_basic', 'instagram_business_manage_insights'])];
+      // Dashboard-generated tokens carry whatever permissions the app has; they are discovered on use.
+      profiles = [await this.ctx.oauth.profileFromInstagramToken(usable, expiresAt, [])];
     } else {
       profiles = await this.ctx.oauth.profilesFromFacebookUserToken(token);
       if (!profiles.length) throw badRequest('לא נמצאו חשבונות Instagram מקצועיים המקושרים לדפי הפייסבוק של הטוקן');

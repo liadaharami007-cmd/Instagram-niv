@@ -52,6 +52,27 @@ export const CAPABILITIES: Capability[] = [
     note: 'מספר עוקבים ופוסטים של חשבונות עסקיים/יוצרים אחרים. זמין רק בחיבור דרך Facebook Login.',
   },
   {
+    key: 'publishing',
+    title: 'פרסום מתוזמן: פוסטים, רילס וסטוריז',
+    support: 'official',
+    permissions: { instagram_login: ['instagram_business_content_publish'], facebook_login: ['instagram_content_publish'] },
+    note: 'אוטומטי לגמרי בשעה שנקבעה. עד 100 פרסומים ב-24 שעות (מגבלת Meta). הקובץ חייב להיות נגיש ב-HTTPS ציבורי.',
+  },
+  {
+    key: 'comment_replies',
+    title: 'מענה אוטומטי לתגובות (ציבורי ובפרטי)',
+    support: 'official',
+    permissions: { instagram_login: ['instagram_business_manage_comments', 'instagram_business_manage_messages'], facebook_login: ['instagram_manage_comments', 'instagram_manage_messages'] },
+    note: 'לפי מילות מפתח או לכל תגובה. בזמן אמת דרך Webhooks, או בבדיקה כל 15 דקות. מגבלה שעתית נגד ספאם.',
+  },
+  {
+    key: 'dm_replies',
+    title: 'מענה אוטומטי להודעות בדיירקט',
+    support: 'official',
+    permissions: { instagram_login: ['instagram_business_manage_messages'], facebook_login: ['instagram_manage_messages', 'pages_manage_metadata'] },
+    note: 'הודעת פתיחה ותשובות לפי מילות מפתח. דורש Webhooks (כתובת ציבורית). Meta מתירה מענה עד 24 שעות מההודעה של הלקוח.',
+  },
+  {
     key: 'follow',
     title: 'Follow — מעקב אחרי חשבונות',
     support: 'manual',
