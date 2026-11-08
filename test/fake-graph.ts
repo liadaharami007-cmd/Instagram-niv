@@ -48,7 +48,7 @@ export function createFakeGraph() {
         return json(inj.status, inj.body, inj.headers);
       }
     }
-    const usage = state.usageHeader ? { 'x-app-usage': state.usageHeader } : {};
+    const usage: Record<string, string> = state.usageHeader ? { 'x-app-usage': state.usageHeader } : {};
     const token = params.get('access_token') ?? '';
     if (token === 'revoked-token-xxxxxxxxxxxxxxxx') return err(190, 'Error validating access token: The session has been invalidated', 400, 460);
 

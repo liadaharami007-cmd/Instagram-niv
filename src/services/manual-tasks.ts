@@ -7,6 +7,21 @@ import type { ManualType } from './safety.ts';
 
 export const MANUAL_TYPES: ManualType[] = ['follow', 'unfollow', 'story_like'];
 export type Outcome = 'done' | 'skipped' | 'failed' | 'no_story' | 'not_found';
+export interface TaskRow {
+  id: string;
+  org_id: string;
+  account_id: string;
+  target_id: string;
+  username: string;
+  type: ManualType;
+  status: string;
+  reason: string;
+  planned_day: string;
+  created_at: number;
+  completed_at: number | null;
+  completed_by: string | null;
+  note: string | null;
+}
 const OUTCOMES = new Set<Outcome>(['done', 'skipped', 'failed', 'no_story', 'not_found']);
 
 /** Official Instagram web links. On phones they open the Instagram app (universal links). */
@@ -108,7 +123,7 @@ export class ManualTasksService {
   list(account: AccountRow, opts: { type?: string; status?: string; day?: string; limit?: number }) {
     const s = this.ctx.accounts.settings(account.id);
     const day = opts.day ?? dayKey(this.ctx.now(), s.timezone);
-    const rows = this.ctx.db.all(
+    const rows = this.ctx.db.all<TaskRow & Record<string, unknown>>(
       `SELECT m.*, u.name AS completed_by_name, t.segment, t.followers_count, t.follows_me, t.followed_at
          FROM manual_tasks m LEFT JOIN users u ON u.id = m.completed_by LEFT JOIN targets t ON t.id = m.target_id
         WHERE m.account_id = ? AND (? IS NULL OR m.type = ?) AND (? IS NULL OR m.status = ?) AND m.planned_day = ?
@@ -145,7 +160,7 @@ export class ManualTasksService {
   next(account: AccountRow, type: ManualType) {
     const s = this.ctx.accounts.settings(account.id);
     const gate = this.ctx.safety.manualGate(account, s, type);
-    const task = this.ctx.db.get(
+    const task = this.ctx.db.get<TaskRow>(
       `SELECT * FROM manual_tasks WHERE account_id = ? AND type = ? AND status = 'pending' AND planned_day = ? ORDER BY created_at, id LIMIT 1`,
       account.id, type, dayKey(this.ctx.now(), s.timezone),
     );
@@ -158,7 +173,7 @@ export class ManualTasksService {
    */
   complete(orgId: string, taskId: string, outcome: string, userId: string, note?: string, force = false) {
     if (!OUTCOMES.has(outcome as Outcome)) throw badRequest('תוצאה לא תקינה');
-    const task = this.ctx.db.get('SELECT * FROM manual_tasks WHERE id = ? AND org_id = ?', taskId, orgId);
+    const task = this.ctx.db.get<TaskRow>('SELECT * FROM manual_tasks WHERE id = ? AND org_id = ?', taskId, orgId);
     if (!task) throw notFound('המשימה');
     if (task.status !== 'pending') throw conflict('המשימה כבר טופלה');
     const account = this.ctx.accounts.get(orgId, task.account_id);
