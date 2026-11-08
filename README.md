@@ -21,6 +21,13 @@ Instagram Niv Bot manages growth for several Instagram professional accounts. It
 | **Story likes** | 🟡 Guided manual workflow | A queue with a minimum interval per account, plus a "no active story" option. |
 | **Meta Account Safety** | ✅ Automatic | Detects expired tokens, missing permissions, rate limits and Meta blocks. Watches usage headers and slows down before the limit. Includes a circuit breaker, automatic pause and resume, pacing for manual actions, and a freeze after an action block. |
 
+## Demo mode and work session
+
+- **🎬 Demo account in one click:** "Open demo account" on the home screen or the connect page. It has 90 days of sample data, posts, competitors, an audience list and tasks. It's labeled "Demo" on every screen, never calls Meta, and is deleted from Settings like any other account.
+- **▶ Work session:** all of today's manual tasks (Follow, story likes, Unfollow) in one flow with a progress bar. When it's not yet safe to continue, the system pauses and resumes automatically.
+- **Bottom line:** a summary of the week in plain sentences at the top of the growth screen.
+- **Demo video:** `npm run demo:video` records a walkthrough with Hebrew captions to `data/demo-video/niv-bot-demo.mp4`.
+
 ## Architecture
 
 ```

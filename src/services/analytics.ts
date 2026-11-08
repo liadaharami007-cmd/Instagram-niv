@@ -354,7 +354,7 @@ export class AnalyticsService {
       const tot = (k: string) => w.reduce((acc, d: any) => (typeof d[k] === 'number' ? (acc ?? 0) + d[k] : acc), null as number | null);
       const interactions = tot('total_interactions');
       return {
-        id: a.id, username: a.username, status: a.status, followers: s.followers, change7d: s.change7d, change30d: s.change30d,
+        id: a.id, username: a.username, status: a.status, isDemo: !!a.is_demo, followers: s.followers, change7d: s.change7d, change30d: s.change30d,
         reach7d: tot('reach'), interactions7d: interactions,
         engagementRate: interactions !== null && s.followers ? Math.round((interactions / s.followers) * 10000) / 100 : null,
       };

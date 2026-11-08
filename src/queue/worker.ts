@@ -80,6 +80,11 @@ export class Worker {
       ctx.queue.fail(job.id, 'Account no longer exists', { permanent: true });
       return;
     }
+    if (account?.is_demo && API_JOB_TYPES.has(job.type)) {
+      // Demo accounts have no Meta connection: never call the API for them.
+      ctx.queue.complete(job.id, { skipped: 'demo account' });
+      return;
+    }
     if (account && API_JOB_TYPES.has(job.type)) {
       const gate = ctx.safety.checkApi(account);
       if (!gate.ok) {

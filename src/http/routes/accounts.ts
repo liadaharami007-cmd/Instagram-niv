@@ -65,6 +65,12 @@ export function accountRoutes(app: FastifyInstance, ctx: Ctx) {
     return { accounts: saved.map((a) => ctx.accounts.toPublic(a)) };
   });
 
+  // ── Demo workspace (clearly flagged sample data, never touches Meta) ──
+  app.post('/api/demo', async (req: any) => {
+    admin(req);
+    return { id: ctx.demo.create(req.auth.orgId, req.auth.userId).id };
+  });
+
   // ── Accounts ──
   app.get('/api/accounts', async (req: any) =>
     ctx.accounts.list(req.auth.orgId).map((a) => ({ ...ctx.accounts.toPublic(a), summary: ctx.analytics.summary(a), tasks: ctx.tasks.summary(a) })),

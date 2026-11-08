@@ -66,7 +66,7 @@ try {
   await page.waitForSelector('text=ברוך הבא');
   step('registered organization and owner');
 
-  await page.click('text=חיבור חשבון ראשון');
+  await page.click('text=חיבור חשבון Instagram אמיתי');
   await page.waitForSelector('text=מה המערכת יכולה לעשות');
   assert.ok(await page.isVisible('text=לא הוגדר עדיין'), 'OAuth shows as not configured without app secrets');
   await page.fill('input[name=token]', 'test-token-xxxxxxxxxxxxxxxxxxxx');

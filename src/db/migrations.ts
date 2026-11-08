@@ -288,4 +288,9 @@ CREATE INDEX audit_log_org ON audit_log(org_id, created_at);
 CREATE INDEX audit_log_account ON audit_log(account_id, created_at);
 `,
   },
+  {
+    id: 2,
+    name: 'demo_accounts',
+    sql: `ALTER TABLE ig_accounts ADD COLUMN is_demo INTEGER NOT NULL DEFAULT 0;`,
+  },
 ];

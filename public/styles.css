@@ -93,6 +93,12 @@ p { margin: .25rem 0 .75rem; }
 .grid.k2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .row { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
 .row.between { justify-content: space-between; }
+.row.center { justify-content: center; }
+.highlights { display: grid; gap: .5rem; }
+.highlight { display: flex; gap: .6rem; align-items: baseline; font-size: 1.02rem; }
+.highlight .ico { width: 1.6rem; text-align: center; flex: none; }
+.session-progress { height: 12px; }
+.big-num { font-size: 2.2rem; font-weight: 700; }
 .spacer { flex: 1; }
 .kpi .label { color: var(--muted); font-size: .85rem; }
 .kpi .value { font-size: 1.7rem; font-weight: 700; }

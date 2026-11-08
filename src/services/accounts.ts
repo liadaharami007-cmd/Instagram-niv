@@ -32,6 +32,7 @@ export interface AccountRow {
   follows_count: number | null;
   media_count: number | null;
   last_synced_at: number | null;
+  is_demo: number;
   created_at: number;
   updated_at: number;
 }

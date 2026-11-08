@@ -191,3 +191,27 @@ test('Meta deauthorize + data deletion callbacks verify signature and erase data
   assert.ok(ok.json().confirmation_code);
   assert.equal(ctx.db.get<{ n: number }>('SELECT COUNT(*) AS n FROM ig_accounts')!.n, 0);
 });
+
+test('demo workspace: one click, clearly flagged, rich sample data, never calls Meta', async () => {
+  const { call, register, ctx, fake } = await setup();
+  const a = await register('demo@niv.io', 'Demo Org');
+  const r1 = (await call('POST', '/api/demo', {}, a)).json();
+  const r2 = (await call('POST', '/api/demo', {}, a)).json();
+  assert.equal(r1.id, r2.id, 'idempotent');
+  const acc = (await call('GET', `/api/accounts/${r1.id}`, undefined, a)).json();
+  assert.equal(acc.account.is_demo, 1);
+  const an = (await call('GET', `/api/accounts/${r1.id}/analytics?days=90`, undefined, a)).json();
+  assert.ok(an.summary.change7d > 0 && an.summary.change30d > 0);
+  assert.ok(an.series.every((d: any) => typeof d.followers_count === 'number'));
+  const sum = (await call('GET', `/api/accounts/${r1.id}/tasks/summary`, undefined, a)).json();
+  assert.ok(sum.follow.byStatus.pending > 0 && sum.unfollow.byStatus.pending > 0 && sum.story_like.byStatus.pending > 0);
+  assert.equal((await call('POST', `/api/accounts/${r1.id}/jobs`, { type: 'sync_profile' }, a)).status, 400);
+  const before = fake.state.calls.length;
+  ctx.queue.enqueue({ type: 'sync_profile', orgId: acc.account.org_id, accountId: r1.id });
+  const { Worker } = await import('../src/queue/worker.ts');
+  const { drain } = await import('./helpers.ts');
+  await drain(ctx, new Worker(ctx));
+  assert.equal(fake.state.calls.length, before, 'no Meta call for demo accounts');
+  const cmp = (await call('GET', '/api/analytics/compare', undefined, a)).json();
+  assert.equal(cmp[0].isDemo, true);
+});

@@ -4,6 +4,7 @@ import { state, refreshAccounts, onLeave, activityList } from './app.js';
 
 const TABS = [
   ['growth', 'צמיחה ונתונים'],
+  ['session', '▶ סשן עבודה'],
   ['follow', 'Follow'],
   ['unfollow', 'Unfollow'],
   ['stories', 'סטוריז'],
@@ -25,11 +26,13 @@ export async function accountPage(main, id, tab, query) {
         h('h1', { class: 'ltr' }, `@${account.username}`),
         h('div', { class: 'row small muted' }, statusBadge(account.status), h('span', {}, [account.name, `${fmt(summary.followers)} עוקבים`, `סונכרן ${ago(account.last_synced_at)}`].filter(Boolean).join(' · ')))),
       h('span', { class: 'spacer' }),
+      tab !== 'session' && account.status !== 'needs_reauth' ? h('a', { class: 'btn primary', href: `#/a/${id}/session` }, '▶ סשן עבודה') : null,
       account.status === 'needs_reauth'
         ? h('a', { class: 'btn primary', href: '#/accounts' }, 'חיבור מחדש')
         : paused
           ? h('button', { class: 'btn good', onclick: action(async () => { await api.post(`/api/accounts/${id}/resume`); await refreshAccounts(); rerender(); }, 'החשבון חודש') }, '▶ חידוש פעילות')
           : h('button', { class: 'btn danger', onclick: action(async () => { await api.post(`/api/accounts/${id}/pause`, {}); await refreshAccounts(); rerender(); }, 'כל הפעולות הושהו') }, '⏸ השהיית חשבון')),
+    account.is_demo ? h('div', { class: 'alert info' }, '🎬 חשבון הדגמה — כל המספרים במסך הזה הם נתונים לדוגמה בלבד, והחשבון אינו מחובר לאינסטגרם. לחיבור חשבון אמיתי: "חיבור חשבון".') : null,
     account.status === 'needs_reauth' ? h('div', { class: 'alert bad' }, 'ההרשאה לחשבון פגה או בוטלה ב-Meta. כל המשימות האוטומטיות נעצרו. יש לחבר מחדש את החשבון.') : null,
     paused ? h('div', { class: 'alert warn' }, `החשבון מושהה: ${account.pause_reason || ''}${account.paused_until ? ` · חידוש אוטומטי ב-${dt(account.paused_until)}` : ''}`) : null,
     account.manual_cooldown_until && account.manual_cooldown_until > Date.now() ? h('div', { class: 'alert bad' }, `הקפאת בטיחות לפעולות ידניות עד ${dt(account.manual_cooldown_until)} (דווחה חסימה מאינסטגרם).`) : null,
@@ -37,7 +40,7 @@ export async function accountPage(main, id, tab, query) {
     body,
   );
   const ctx = { id, account, settings, isAdmin, query };
-  const pages = { growth: growthTab, follow: (b, c) => manualTab(b, c, 'follow'), unfollow: unfollowTab, stories: storiesTab, automation: automationTab, safety: safetyTab, activity: activityTab, settings: settingsTab };
+  const pages = { session: sessionTab, growth: growthTab, follow: (b, c) => manualTab(b, c, 'follow'), unfollow: unfollowTab, stories: storiesTab, automation: automationTab, safety: safetyTab, activity: activityTab, settings: settingsTab };
   await (pages[tab] || growthTab)(body, ctx);
 }
 
@@ -58,6 +61,7 @@ async function growthTab(body, { id, account }) {
   const chartCard = (title, el, note) => h('div', { class: 'card' }, h('h3', {}, title), el, note ? h('div', { class: 'small muted' }, note) : null);
 
   mount(body,
+    highlights(an, media),
     h('div', { class: 'grid k4' },
       h('div', { class: 'card kpi' }, h('div', { class: 'label' }, 'עוקבים'), h('div', { class: 'value num' }, fmt(s.followers)), h('div', { class: 'small muted' }, `נעקבים: ${fmt(s.follows)} · פוסטים: ${fmt(s.media)}`)),
       h('div', { class: 'card kpi' }, h('div', { class: 'label' }, 'שינוי יומי'), h('div', { class: 'value' }, delta(s.change1d))),
@@ -89,6 +93,63 @@ async function growthTab(body, { id, account }) {
       media.length ? h('div', { class: 'media-grid' }, media.map(mediaItem)) : h('div', { class: 'empty' }, 'אין פוסטים מסונכרנים עדיין')),
     comps ? competitorsCard(id, comps) : null,
   );
+}
+
+/** Plain-language summary of the week for non-technical readers. */
+function highlights(an, media) {
+  const row = (k) => an.weekly.find((r) => r.metric === k);
+  const pct = (r) => (r?.deltaPct === null || r?.deltaPct === undefined ? '' : ` (${r.deltaPct > 0 ? '▲' : r.deltaPct < 0 ? '▼' : ''}${Math.abs(r.deltaPct)}% לעומת השבוע הקודם)`);
+  const items = [];
+  const net = row('net_change');
+  if (net?.current !== null && net?.current !== undefined) items.push(['📈', `השבוע ${net.current >= 0 ? 'נוספו' : 'ירדו'} ${fmt(Math.abs(net.current))} עוקבים${pct(net)}`]);
+  const reach = row('reach');
+  if (reach?.current) items.push(['👀', `החשיפה השבועית: ${fmt(reach.current)} חשבונות${pct(reach)}`]);
+  const ti = row('total_interactions');
+  if (ti?.current) items.push(['💬', `${fmt(ti.current)} אינטראקציות השבוע${pct(ti)}`]);
+  const best = [...media].filter((m) => m.insights?.reach).sort((a, b) => b.insights.reach - a.insights.reach)[0];
+  if (best) items.push(['🏆', `הפוסט המוביל לאחרונה הגיע ל-${fmt(best.insights.reach)} חשבונות (${dt(best.posted_at)})`]);
+  if (an.summary.change30d !== null) items.push(['🗓️', `ב-30 הימים האחרונים: ${signed(an.summary.change30d)} עוקבים`]);
+  if (!items.length) return null;
+  return h('div', { class: 'card' }, h('h2', {}, 'בשורה התחתונה'), h('div', { class: 'highlights' }, items.map(([i, t]) => h('div', { class: 'highlight' }, h('span', { class: 'ico' }, i), h('span', {}, t)))));
+}
+
+// ───────────── One-click work session ─────────────
+const SESSION_ORDER = ['follow', 'story_like', 'unfollow'];
+const SESSION_LABEL = { follow: 'Follow', story_like: 'לייק לסטורי', unfollow: 'Unfollow' };
+
+/** Runs all of today's manual tasks in one guided flow, choosing the next allowed type automatically. */
+async function sessionTab(body, { id }) {
+  const sum = await api.get(`/api/accounts/${id}/tasks/summary`);
+  const count = (t, k) => sum[t].byStatus[k] || 0;
+  const pending = SESSION_ORDER.reduce((a, t) => a + count(t, 'pending'), 0);
+  const handled = SESSION_ORDER.reduce((a, t) => a + Object.entries(sum[t].byStatus).filter(([k]) => !['pending', 'cancelled', 'expired'].includes(k)).reduce((x, [, n]) => x + n, 0), 0);
+  const total = pending + handled;
+  const bar = h('span');
+  bar.style.width = `${total ? Math.round((handled / total) * 100) : 0}%`;
+  const header = h('div', { class: 'card' },
+    h('div', { class: 'row between' }, h('h2', {}, 'סשן עבודה יומי'), h('span', { class: 'big-num num' }, `${handled}/${total}`)),
+    h('div', { class: 'progress session-progress' }, bar),
+    h('div', { class: 'row small muted' }, SESSION_ORDER.map((t) => h('span', { class: 'badge' }, `${SESSION_LABEL[t]}: ${count(t, 'done')} בוצעו · ${count(t, 'pending')} נותרו`))));
+
+  if (!pending) {
+    mount(body, header, h('div', { class: 'card task-card' },
+      h('div', { class: 'big-num' }, total ? '🎉' : '📋'),
+      h('h2', {}, total ? 'סיימת את כל המשימות להיום!' : 'אין עדיין משימות להיום'),
+      h('p', { class: 'muted' }, total ? 'המערכת תכין רשימה חדשה מחר, בהתאם למגבלות הבטיחות.' : 'אפשר ליצור עכשיו רשימה לפי קהל היעד והכללים שהוגדרו.'),
+      h('button', { class: 'btn primary big', onclick: action(async () => { await api.post(`/api/accounts/${id}/tasks/plan`); rerender(); }) }, 'יצירת משימות להיום')));
+    return;
+  }
+  const ready = SESSION_ORDER.find((t) => count(t, 'pending') && sum[t].gate.allowed);
+  if (!ready) {
+    const waits = SESSION_ORDER.filter((t) => count(t, 'pending')).map((t) => sum[t].gate);
+    const next = Math.min(...waits.map((g) => g.nextAllowedAt || Infinity));
+    const msg = h('div', { class: 'small muted' });
+    const t = setInterval(() => { if (next !== Infinity && next <= Date.now()) { clearInterval(t); rerender(); } else msg.textContent = next === Infinity ? '' : `ממשיכים בעוד ${countdown(next)}`; }, 1000);
+    onLeave(() => clearInterval(t));
+    mount(body, header, h('div', { class: 'card task-card' }, h('div', { class: 'big-num' }, '⏳'), h('h2', {}, 'הפסקת בטיחות'), h('p', {}, waits[0]?.reason || ''), msg));
+    return;
+  }
+  mount(body, header, manualNotice(), h('div', { class: 'small muted' }, `עכשיו: ${SESSION_LABEL[ready]}`), taskRunner(id, ready, rerender));
 }
 
 function mediaItem(m) {

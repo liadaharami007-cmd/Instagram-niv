@@ -64,7 +64,7 @@ function renderNav() {
     h('div', { class: 'brand' }, h('img', { src: '/favicon.svg', alt: '' }), 'Instagram Niv Bot'),
     navLink('#/', 'סקירה כללית', cur === '#/' || cur === '#'),
     h('div', { class: 'nav-section' }, 'חשבונות'),
-    state.accounts.map((a) => navLink(`#/a/${a.id}/growth`, h('span', { class: 'row' }, `@${a.username}`, a.status !== 'active' ? statusBadge(a.status) : null), cur.startsWith(`#/a/${a.id}`))),
+    state.accounts.map((a) => navLink(`#/a/${a.id}/growth`, h('span', { class: 'row' }, `@${a.username}`, a.is_demo ? h('span', { class: 'badge primary' }, 'הדגמה') : null, a.status !== 'active' ? statusBadge(a.status) : null), cur.startsWith(`#/a/${a.id}`))),
     navLink('#/accounts', '+ חיבור חשבון', cur.startsWith('#/accounts')),
     h('div', { class: 'nav-section' }, 'ארגון'),
     navLink('#/activity', 'יומן פעילות', cur.startsWith('#/activity')),
@@ -142,8 +142,10 @@ async function overviewPage(main) {
   if (!accounts.length) {
     mount(main, h('div', { class: 'card empty' },
       h('h2', {}, 'ברוך הבא ל-Instagram Niv Bot'),
-      h('p', {}, 'כדי להתחיל, חבר חשבון Instagram מקצועי (Business או Creator).'),
-      h('a', { class: 'btn primary big', href: '#/accounts' }, 'חיבור חשבון ראשון')));
+      h('p', {}, 'בחר איך להתחיל:'),
+      h('div', { class: 'row center' },
+        h('a', { class: 'btn primary big', href: '#/accounts' }, '🔗 חיבור חשבון Instagram אמיתי'),
+        demoButton('big'))));
     return;
   }
   const totalFollowers = rows.reduce((a, r) => a + (r.followers || 0), 0);
@@ -165,7 +167,7 @@ async function overviewPage(main) {
       h('div', { class: 'table-wrap' }, h('table', {},
         h('thead', {}, h('tr', {}, ['חשבון', 'סטטוס', 'עוקבים', '7 ימים', '30 ימים', 'חשיפה 7 ימים', 'מעורבות'].map((t) => h('th', {}, t)))),
         h('tbody', {}, rows.map((r) => h('tr', {},
-          h('td', {}, h('a', { href: `#/a/${r.id}/growth` }, `@${r.username}`)),
+          h('td', {}, h('a', { href: `#/a/${r.id}/growth` }, `@${r.username}`), r.isDemo ? h('span', { class: 'badge primary' }, ' הדגמה') : null),
           h('td', {}, statusBadge(r.status)),
           h('td', { class: 'num' }, fmt(r.followers)),
           h('td', {}, delta(r.change7d)),
@@ -177,6 +179,14 @@ async function overviewPage(main) {
       `תור משימות: ${fmt(sys.queue.queued || 0)} ממתינות · ${fmt(sys.queue.running || 0)} רצות · ${fmt(sys.queue.failed || 0)} נכשלו (24ש׳) · `,
       sys.worker ? `מנוע רקע פעיל (${ago(sys.worker.lastTickAt)})` : 'מנוע רקע חיצוני'),
   );
+}
+
+function demoButton(size = '') {
+  return h('button', { class: ['btn', size], onclick: action(async () => {
+    const r = await api.post('/api/demo');
+    await refreshAccounts();
+    location.hash = `#/a/${r.id}/growth`;
+  }) }, '🎬 פתיחת חשבון הדגמה');
 }
 
 function kpi(label, value, extra) {
@@ -196,12 +206,13 @@ function accountCard(a) {
     h('div', { class: 'row' },
       a.profile_picture_url ? h('img', { class: 'avatar', src: a.profile_picture_url, alt: '' }) : h('div', { class: 'avatar' }),
       h('div', {}, h('a', { href: `#/a/${a.id}/growth` }, h('strong', {}, `@${a.username}`)), h('div', { class: 'small muted' }, a.provider === 'facebook_login' ? 'Facebook Login' : 'Instagram Login')),
-      h('span', { class: 'spacer' }), statusBadge(a.status)),
+      h('span', { class: 'spacer' }), a.is_demo ? h('span', { class: 'badge primary' }, 'הדגמה') : null, statusBadge(a.status)),
     h('div', { class: 'row', }, h('span', { class: 'kpi' }, h('span', { class: 'value num' }, fmt(a.summary.followers))), h('span', { class: 'muted small' }, 'עוקבים'), delta(a.summary.change1d), h('span', { class: 'small muted' }, 'היום')),
     a.last_error && a.status !== 'active' ? h('div', { class: 'alert bad small' }, a.last_error) : null,
     h('h3', {}, 'משימות ידניות היום'),
     line('Follow', t.follow), line('Unfollow', t.unfollow), line('לייקים לסטוריז', t.story_like),
-    h('div', { class: 'small muted' }, `סנכרון אחרון: ${ago(a.last_synced_at)}`));
+    h('div', { class: 'row between' }, h('span', { class: 'small muted' }, `סנכרון אחרון: ${ago(a.last_synced_at)}`),
+      h('a', { class: 'btn primary', href: `#/a/${a.id}/session` }, '▶ סשן עבודה')));
 }
 
 // ───────────── Connect ─────────────
@@ -244,6 +255,9 @@ async function connectPage(main, query) {
       provider('instagram_login', 'Instagram Login (מומלץ)', 'חיבור ישיר לחשבון אינסטגרם מקצועי, ללא צורך בדף פייסבוק. כולל נתוני פרופיל, Insights, פוסטים וסטוריז.'),
       provider('facebook_login', 'Facebook Login', 'לחשבונות המקושרים לדף פייסבוק. מוסיף Business Discovery: מחקר קהל יעד ומעקב מתחרים.')),
     tokenForm,
+    h('div', { class: 'card row between' },
+      h('div', {}, h('h3', {}, 'רק רוצה לראות איך זה נראה?'), h('div', { class: 'small muted' }, 'חשבון הדגמה עם 90 ימי נתונים לדוגמה — מסומן "הדגמה", לא מחובר לאינסטגרם, ונמחק בלחיצה.')),
+      demoButton()),
     h('div', { class: 'card' },
       h('h2', {}, 'מה המערכת יכולה לעשות — לפי הרשאות Meta הרשמיות'),
       h('div', { class: 'table-wrap' }, h('table', {},

@@ -11,6 +11,7 @@ import { ManualTasksService } from './services/manual-tasks.ts';
 import { RelationshipImportService } from './services/relationship-import.ts';
 import { AuditService } from './services/audit.ts';
 import { JobQueue } from './queue/queue.ts';
+import { DemoService } from './services/demo.ts';
 
 /** Composition root: every service receives the same shared context. */
 export interface Ctx {
@@ -28,6 +29,7 @@ export interface Ctx {
   targets: TargetsService;
   tasks: ManualTasksService;
   relationships: RelationshipImportService;
+  demo: DemoService;
 }
 
 export function createContext(config: Config, opts: { fetchImpl?: FetchLike; now?: () => number; db?: Db } = {}): Ctx {
@@ -44,6 +46,7 @@ export function createContext(config: Config, opts: { fetchImpl?: FetchLike; now
   ctx.targets = new TargetsService(ctx);
   ctx.tasks = new ManualTasksService(ctx);
   ctx.relationships = new RelationshipImportService(ctx);
+  ctx.demo = new DemoService(ctx);
   ctx.graph.onUsage = (accountId, usage) => ctx.safety.onUsage(accountId, usage);
   return ctx;
 }
