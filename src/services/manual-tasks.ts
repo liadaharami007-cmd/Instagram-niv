@@ -51,7 +51,7 @@ export class ManualTasksService {
       case 'follow':
         // Never re-follow someone this account already unfollowed.
         return `SELECT t.id, t.username, t.segment FROM targets t WHERE t.account_id = ? AND t.follow_wanted = 1 AND t.i_follow = 0
-                AND t.unfollowed_at IS NULL ${notQueued} ORDER BY t.created_at LIMIT ?`;
+                AND t.unfollowed_at IS NULL ${notQueued} ORDER BY t.created_at, t.rowid LIMIT ?`;
       case 'unfollow':
         return `SELECT t.id, t.username, t.followed_at FROM targets t WHERE t.account_id = ? AND t.i_follow = 1 AND t.whitelisted = 0
                 AND (? = 0 OR t.follows_me = 0) AND t.followed_at IS NOT NULL AND t.followed_at <= ? ${notQueued} ORDER BY t.followed_at LIMIT ?`;
@@ -127,7 +127,7 @@ export class ManualTasksService {
       `SELECT m.*, u.name AS completed_by_name, t.segment, t.followers_count, t.follows_me, t.followed_at
          FROM manual_tasks m LEFT JOIN users u ON u.id = m.completed_by LEFT JOIN targets t ON t.id = m.target_id
         WHERE m.account_id = ? AND (? IS NULL OR m.type = ?) AND (? IS NULL OR m.status = ?) AND m.planned_day = ?
-        ORDER BY CASE m.status WHEN 'pending' THEN 0 ELSE 1 END, m.created_at, m.id LIMIT ?`,
+        ORDER BY CASE m.status WHEN 'pending' THEN 0 ELSE 1 END, m.created_at, m.rowid LIMIT ?`,
       account.id, opts.type ?? null, opts.type ?? null, opts.status ?? null, opts.status ?? null, day, Math.min(opts.limit ?? 200, 500),
     );
     return rows.map((r) => ({ ...r, link: instagramLink(r.type, r.username) }));
@@ -161,7 +161,7 @@ export class ManualTasksService {
     const s = this.ctx.accounts.settings(account.id);
     const gate = this.ctx.safety.manualGate(account, s, type);
     const task = this.ctx.db.get<TaskRow>(
-      `SELECT * FROM manual_tasks WHERE account_id = ? AND type = ? AND status = 'pending' AND planned_day = ? ORDER BY created_at, id LIMIT 1`,
+      `SELECT * FROM manual_tasks WHERE account_id = ? AND type = ? AND status = 'pending' AND planned_day = ? ORDER BY created_at, rowid LIMIT 1`,
       account.id, type, dayKey(this.ctx.now(), s.timezone),
     );
     return { gate, task: task ? { ...task, link: instagramLink(type, task.username) } : null };

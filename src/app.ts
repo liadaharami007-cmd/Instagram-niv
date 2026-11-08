@@ -13,7 +13,6 @@ export async function buildApp(ctx: Ctx, runtime: Runtime = { startedAt: Date.no
     loggerInstance: ctx.log as FastifyBaseLogger,
     trustProxy: true,
     bodyLimit: 2 * 1024 * 1024,
-    disableRequestLogging: ctx.config.env === 'test',
   });
 
   // JSON parser that tolerates an empty body (e.g. DELETE/POST without payload).

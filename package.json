@@ -12,7 +12,8 @@
     "dev": "node --disable-warning=ExperimentalWarning --watch src/server.ts",
     "test": "node --disable-warning=ExperimentalWarning --test --test-concurrency=1 test/*.test.ts",
     "typecheck": "tsc --noEmit",
-    "keygen": "node -e \"console.log(require('crypto').randomBytes(32).toString('base64'))\""
+    "keygen": "node -e \"console.log(require('crypto').randomBytes(32).toString('base64'))\"",
+    "test:e2e": "node --disable-warning=ExperimentalWarning test/e2e/ui.e2e.ts"
   },
   "dependencies": {
     "@fastify/static": "^8.3.0",
